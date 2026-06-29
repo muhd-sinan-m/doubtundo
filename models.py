@@ -47,15 +47,23 @@ class CustomRealDictCursor(psycopg2.extras.RealDictCursor):
 from psycopg2.pool import ThreadedConnectionPool
 
 _connection_pool = None
+_pool_pid = None
 
 def get_connection_pool():
-    global _connection_pool
-    if _connection_pool is None:
+    global _connection_pool, _pool_pid
+    current_pid = os.getpid()
+    if _connection_pool is None or _pool_pid != current_pid:
+        if _connection_pool:
+            try:
+                _connection_pool.closeall()
+            except:
+                pass
         db_url = os.environ.get('DATABASE_URL')
         if not db_url:
             raise RuntimeError("DATABASE_URL environment variable is not set")
         # Initialize pool: minimum 2 connections, maximum 20 connections
         _connection_pool = ThreadedConnectionPool(2, 20, dsn=db_url)
+        _pool_pid = current_pid
     return _connection_pool
 
 class PostgresConnectionWrapper:
