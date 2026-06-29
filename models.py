@@ -720,7 +720,7 @@ def get_user_stats(user_id: str) -> dict:
         return {
             'doubts_posted': conn.execute("SELECT COUNT(*) FROM doubts WHERE user_id=?", (user_id,)).fetchone()[0],
             'replies_given': conn.execute("SELECT COUNT(*) FROM replies WHERE user_id=?", (user_id,)).fetchone()[0],
-            'helpful_marks': conn.execute("SELECT COUNT(*) FROM replies WHERE user_id=? AND is_helpful=1", (user_id,)).fetchone()[0],
+            'helpful_marks': conn.execute("SELECT COUNT(*) FROM replies WHERE user_id=? AND is_helpful=TRUE", (user_id,)).fetchone()[0],
         }
     finally:
         conn.close()
