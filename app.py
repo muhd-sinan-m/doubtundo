@@ -202,8 +202,6 @@ def register_routes(app):
     # ── Home (Landing Page)
     @app.route('/', endpoint='main.index')
     def index():
-        if g.current_user:
-            return redirect(url_for('main.feed'))
         return render_template('landing.html')
 
     # ── Doubt Board Feed (Reddit-style)
