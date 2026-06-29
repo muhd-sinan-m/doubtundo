@@ -120,9 +120,10 @@ def sso_handler():
     session['email'] = email  # server-side only
     session.modified = True
 
-    # First visit? → setup nickname
+    # First visit? → redirect to landing page (main.index)
     if not user.get('nickname'):
-        return redirect(url_for('auth_bp.setup_nickname'))
+        flash("SSO verified successfully! Click 'Create Account' to complete your profile.", "info")
+        return redirect(url_for('main.index'))
 
     flash("Welcome back, @" + user['nickname'] + "! 👋", "success")
     return redirect(url_for('main.index'))
@@ -197,6 +198,13 @@ def logout():
 @auth_bp.route('/login')
 def login_redirect():
     """SSO redirect handler: redirects to padikkunnundo's SSO trigger endpoint in production, or dev_login in development."""
+    user_id = session.get('user_id')
+    if user_id:
+        from models import get_user_by_id
+        user = get_user_by_id(user_id)
+        if user and not user.get('nickname'):
+            return redirect(url_for('auth_bp.setup_nickname'))
+
     # If in local dev mode (DEBUG is True or JWT_SECRET is not configured), allow dev-login
     is_prod = os.environ.get('FLASK_ENV') == 'production' or (os.environ.get('JWT_SECRET') and not current_app.config.get('DEBUG'))
     if is_prod:

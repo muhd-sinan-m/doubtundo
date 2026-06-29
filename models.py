@@ -44,9 +44,24 @@ class CustomRealDictCursor(psycopg2.extras.RealDictCursor):
         rows = super().fetchall()
         return [RealDictRowWithIntegerIndexing(r) for r in rows]
 
+from psycopg2.pool import ThreadedConnectionPool
+
+_connection_pool = None
+
+def get_connection_pool():
+    global _connection_pool
+    if _connection_pool is None:
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            raise RuntimeError("DATABASE_URL environment variable is not set")
+        # Initialize pool: minimum 2 connections, maximum 20 connections
+        _connection_pool = ThreadedConnectionPool(2, 20, dsn=db_url)
+    return _connection_pool
+
 class PostgresConnectionWrapper:
-    def __init__(self, conn):
+    def __init__(self, conn, pool=None):
         self._conn = conn
+        self._pool = pool
 
     def cursor(self, *args, **kwargs):
         if 'cursor_factory' not in kwargs:
@@ -80,14 +95,30 @@ class PostgresConnectionWrapper:
         self._conn.rollback()
 
     def close(self):
-        self._conn.close()
+        if self._pool:
+            try:
+                self._conn.rollback()  # Rollback any pending transaction state
+            except:
+                pass
+            self._pool.putconn(self._conn)
+        else:
+            self._conn.close()
 
 def get_db():
-    db_url = os.environ.get('DATABASE_URL')
-    if not db_url:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
-    raw_conn = psycopg2.connect(db_url)
-    return PostgresConnectionWrapper(raw_conn)
+    try:
+        pool = get_connection_pool()
+        raw_conn = pool.getconn()
+        if raw_conn.closed != 0:
+            pool.putconn(raw_conn, close=True)
+            raw_conn = pool.getconn()
+        return PostgresConnectionWrapper(raw_conn, pool=pool)
+    except Exception as e:
+        # Fallback to direct connection if pool fails
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            raise RuntimeError("DATABASE_URL environment variable is not set")
+        raw_conn = psycopg2.connect(db_url)
+        return PostgresConnectionWrapper(raw_conn)
 
 def row_to_dict(row) -> dict | None:
     if row is None:

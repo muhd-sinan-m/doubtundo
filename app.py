@@ -161,6 +161,9 @@ def get_current_user():
         return None
     from models import get_user_by_id
     user = get_user_by_id(user_id)
+    if not user or not user.get('nickname'):
+        g.current_user = None
+        return None
     g.current_user = user
     return user
 
