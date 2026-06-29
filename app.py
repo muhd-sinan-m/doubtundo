@@ -202,7 +202,44 @@ def register_routes(app):
     # ── Home (Landing Page)
     @app.route('/', endpoint='main.index')
     def index():
-        return render_template('landing.html')
+        filters = {
+            'semester': request.args.get('semester', ''),
+            'subject': request.args.get('subject', ''),
+            'unanswered': bool(request.args.get('unanswered')),
+            'admin_answer': bool(request.args.get('admin_answer')),
+        }
+        current_sort = request.args.get('sort', 'latest')
+
+        from models import list_doubts, get_user_upvotes
+        doubts = list_doubts(
+            semester=filters['semester'] or None,
+            subject=filters['subject'] or None,
+            unanswered=filters['unanswered'],
+            admin_answer=filters['admin_answer'],
+            sort=current_sort,
+        )
+
+        user_upvotes = get_user_upvotes(g.current_user['id'], [d['id'] for d in doubts]) if g.current_user else set()
+
+        qs_parts = []
+        if filters['semester']:
+            qs_parts.append(f"semester={filters['semester']}")
+        if filters['subject']:
+            qs_parts.append(f"subject={filters['subject']}")
+        if filters['unanswered']:
+            qs_parts.append("unanswered=1")
+        if filters['admin_answer']:
+            qs_parts.append("admin_answer=1")
+        query_string = "&".join(qs_parts)
+
+        return render_template(
+            'landing.html',
+            filters=filters,
+            doubts=doubts,
+            user_upvotes=user_upvotes,
+            current_sort=current_sort,
+            query_string=query_string
+        )
 
     # ── Doubt Board Feed (Reddit-style)
     @app.route('/feed', endpoint='main.feed')
