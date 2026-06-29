@@ -601,9 +601,9 @@ def get_all_doubts_admin(status: str = None, subject: str = None, semester: str 
         conditions = []
         params = []
         if status == 'resolved':
-            conditions.append("d.is_resolved=1")
+            conditions.append("d.is_resolved=TRUE")
         elif status == 'unresolved':
-            conditions.append("d.is_resolved=0")
+            conditions.append("d.is_resolved=FALSE")
         if subject:
             conditions.append("d.subject=?"); params.append(subject)
         if semester:
@@ -612,8 +612,8 @@ def get_all_doubts_admin(status: str = None, subject: str = None, semester: str 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         sql = f"""
              SELECT d.*, u.nickname, u.email AS poster_email,
-                    (SELECT COUNT(*) FROM replies r WHERE r.doubt_id=d.id AND r.is_hidden=0 AND r.is_admin_answer=0) AS reply_count,
-                    (SELECT COUNT(*) FROM replies r JOIN users u2 ON u2.id=r.user_id WHERE r.doubt_id=d.id AND u2.is_admin=1) AS has_admin_answer
+                    (SELECT COUNT(*) FROM replies r WHERE r.doubt_id=d.id AND r.is_hidden=FALSE AND r.is_admin_answer=FALSE) AS reply_count,
+                    (SELECT COUNT(*) FROM replies r JOIN users u2 ON u2.id=r.user_id WHERE r.doubt_id=d.id AND u2.is_admin=TRUE) AS has_admin_answer
             FROM doubts d LEFT JOIN users u ON u.id=d.user_id
             {where} ORDER BY d.created_at DESC LIMIT 200
         """

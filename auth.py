@@ -122,7 +122,7 @@ def sso_handler():
 
     # First visit? → redirect to landing page (main.index)
     if not user.get('nickname'):
-        flash("SSO verified successfully! Click 'Create Account' to complete your profile.", "info")
+        flash("Successfully authenticated! Please choose a nickname to complete your profile.", "success")
         return redirect(url_for('main.index'))
 
     flash("Welcome back, @" + user['nickname'] + "! 👋", "success")
