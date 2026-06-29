@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Doubt Board{% endblock %}
+
+{% block content %}
+<div class="page-container--wide fade-in-up">
+  <div class="reddit-layout">
+
+    <!-- ==========================================
+         LEFT COLUMN: Doubts Feed List
+         ========================================== -->
+    <div style="display: flex; flex-direction: column;">
+
+      <!-- Reddit-style quick post bar -->
+      <a href="{{ url_for('main.post_doubt') }}" class="reddit-create-post-bar" id="reddit-quick-post-bar"
+        aria-label="Create new doubt">
+        <div class="user-avatar user-avatar--sm" aria-hidden="true" style="margin-right: 4px;">
+          {{ current_user.nickname[0].upper() if current_user.nickname else '?' }}
+        </div>
+        <div class="reddit-create-post-input">
+          Ask your doubt clearly...
+        </div>
+        <span class="btn btn--primary btn--sm" style="padding: 8px 16px;">Post</span>
+      </a>
+
+      <!-- Filter / Sort Bar -->
+      <div class="filter-bar" id="reddit-filter-bar" role="search" aria-label="Filter doubts">
+        <form method="GET" action="{{ url_for('main.feed') }}" id="filter-form" style="display: contents;">
+          <select class="filter-select" name="semester" id="filter-semester" onchange="this.form.submit()"
+            aria-label="Filter by semester">
+            <option value="">All Semesters</option>
+            {% for s in range(1, 7) %}
+            <option value="{{ s }}" {% if filters.semester==s|string %}selected{% endif %}>Semester {{ s }}</option>
+            {% endfor %}
+          </select>
+
+          <select class="filter-select" name="subject" id="filter-subject" onchange="this.form.submit()"
+            aria-label="Filter by subject">
+            <option value="">All Subjects</option>
+            {% for subj in subjects %}
+            <option value="{{ subj }}" {% if filters.subject==subj %}selected{% endif %}>{{ subj }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="filter-toggles-row">
+            <label class="filter-toggle {% if filters.unanswered %}active{% endif %}" for="filter-unanswered">
+              <input type="checkbox" id="filter-unanswered" name="unanswered" value="1" onchange="this.form.submit()" {%
+                if filters.unanswered %}checked{% endif %}>
+              Unanswered
+            </label>
+
+            <label class="filter-toggle {% if filters.admin_answer %}active{% endif %}" for="filter-admin">
+              <input type="checkbox" id="filter-admin" name="admin_answer" value="1" onchange="this.form.submit()" {% if
+                filters.admin_answer %}checked{% endif %}>
+              Has Admin Answer
+            </label>
+          </div>
+        </form>
+
+        <div class="sort-tabs" style="margin-left: auto;" role="tablist">
+          {% for sort_key, sort_label in [('latest', 'Latest'), ('upvotes', 'Top'), ('replies', 'Active')] %}
+          <a href="?{{ query_string }}&sort={{ sort_key }}"
+            class="sort-tab {% if current_sort == sort_key %}active{% endif %}" role="tab"
+            id="sort-{{ sort_key }}-tab">{{ sort_label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Doubts List -->
+      <div id="doubt-feed-list" aria-label="Doubt feed list">
+        {% if doubts %}
+        {% for doubt in doubts %}
+        <div class="reddit-card" id="doubt-card-{{ doubt.id }}">
+
+          <!-- Content Area -->
+          <div class="reddit-card-content" style="padding: 0;">
+
+            <!-- Navigable post body -->
+            <a href="{{ url_for('main.doubt_detail', doubt_id=doubt.id) }}" class="reddit-card-nav-link"
+              style="display: block; padding: 20px 24px 12px; text-decoration: none; color: inherit;"
+              aria-label="View doubt details">
+              <div class="reddit-card-header">
+                <span class="pill pill--subject">{{ doubt.subject }}</span>
+                <span class="pill pill--semester">Sem {{ doubt.semester }}</span>
+                <span style="opacity: 0.5;">·</span>
+                <span>Posted by {% if doubt.is_anonymous %}anonymous{% else %}@{{ doubt.nickname }}{% endif %}</span>
+                <span style="opacity: 0.5;">·</span>
+                <span>{{ doubt.created_at | timeago }}</span>
+                {% if doubt.has_admin_answer %}
+                <span style="opacity: 0.5;">·</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--red);">Admin Replied</span>
+                {% endif %}
+              </div>
+
+              <div class="reddit-card-title">{{ doubt.title }}</div>
+
+              {% if doubt.description %}
+              <div class="reddit-card-description" style="margin-bottom: 0;">{{ doubt.description | striptags |
+                truncate(200) }}</div>
+              {% endif %}
+            </a>
+
+            <!-- Card Action Footer (Not wrapped in anchor to allow separate click events) -->
+            <div class="reddit-card-footer" style="padding: 10px 24px 16px; margin-top: 0; border-top: none;">
+              <button class="reddit-action-btn btn-toggle-replies {% if doubt.reply_count > 0 %}has-admin{% endif %}"
+                data-doubt-id="{{ doubt.id }}" aria-label="View replies inline">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>{{ doubt.reply_count }} Replies</span>
+              </button>
+
+              <button class="reddit-action-btn btn-upvote {% if doubt.id in user_upvotes %}voted{% endif %}"
+                data-id="{{ doubt.id }}" data-type="doubt" aria-label="Upvote this doubt"
+                aria-pressed="{% if doubt.id in user_upvotes %}true{% else %}false{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+                <span><span class="upvote-count">{{ doubt.upvotes }}</span> Upvotes</span>
+              </button>
+
+              {% if doubt.has_admin_answer %}
+              <button class="reddit-action-btn has-admin btn-toggle-replies" style="font-size:11px;"
+                data-doubt-id="{{ doubt.id }}" aria-label="View admin reply inline">
+                🎓 Admin Verified Answer
+              </button>
+              {% endif %}
+
+              {% if doubt.is_resolved %}
+              <span class="pill pill--resolved" style="margin-left: auto;">Resolved</span>
+              {% endif %}
+            </div>
+
+            <!-- Inline Dropdown replies wrapper -->
+            <div class="reddit-replies-dropdown" id="replies-dropdown-{{ doubt.id }}"
+              style="display: none; border-top: 1px solid var(--gray-100); background: var(--gray-50); padding: 16px 20px;">
+              <div class="spinner-wrapper" style="text-align: center; padding: 20px 0;">
+                <span class="spinner"></span> Loading discussion...
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="card empty-state" id="empty-feed">
+          <span class="empty-state-icon">🔍</span>
+          <p class="empty-state-title">No doubts found</p>
+          <p class="empty-state-text">Be the first to ask a doubt on this topic!</p>
+          <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary" id="empty-post-btn">Post the First
+            Doubt</a>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         RIGHT COLUMN: Reddit-style Sidebar
+         ========================================== -->
+    <div class="reddit-sidebar" role="complementary" aria-label="Sidebar info">
+
+
+
+      <!-- Guidelines Widget -->
+      <div class="reddit-widget">
+        <h3 class="reddit-widget-title">Board Guidelines</h3>
+        <ul class="reddit-rules-list">
+          <li>
+            <span class="reddit-rules-num">1.</span>
+            <span>Be respectful and helpful in all replies.</span>
+          </li>
+          <li>
+            <span class="reddit-rules-num">2.</span>
+            <span>Double-check before marking an answer as helpful.</span>
+          </li>
+          <li>
+            <span class="reddit-rules-num">3.</span>
+            <span>Avoid sharing private college/personal credentials.</span>
+          </li>
+          <li>
+            <span class="reddit-rules-num">4.</span>
+            <span>Use markdown format for sharing code blocks.</span>
+          </li>
+        </ul>
+      </div>
+
+
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}

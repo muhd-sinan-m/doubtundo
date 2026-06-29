@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Create a Post{% endblock %}
+{% block meta_description %}Post your academic doubt to the BCA CySec community at Marian College Kuttikkanam{% endblock %}
+
+{% block content %}
+<div class="page-container--wide fade-in-up" style="max-width: 900px; margin: 0 auto; padding: 24px 20px;">
+  
+  <!-- Back navigation -->
+  <div class="mb-16">
+    <a href="{{ url_for('main.feed') }}" style="font-size: 13px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; text-decoration: none;" id="back-link">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Feed
+    </a>
+  </div>
+
+  <div class="post-layout">
+    
+    <!-- LEFT SIDE: Reddit Canvas Editor (No academic form look) -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <h1 style="font-size: 22px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.5px; margin-bottom: 4px;">Create a post</h1>
+
+      <form method="POST" action="{{ url_for('main.post_doubt') }}" id="post-doubt-form" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+
+        <!-- Top Dropdown Selectors: Small inline dropdown pills -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+          
+          <!-- Semester Selector Pill -->
+          <div style="position: relative; display: inline-flex; align-items: center;">
+            <select id="doubt-semester" name="semester" required style="appearance: none; background: var(--white); border: 1px solid var(--gray-300); border-radius: 100px; padding: 6px 30px 6px 14px; font-size: 13px; font-weight: 600; color: var(--charcoal); cursor: pointer; outline: none; background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E&quot;); background-repeat: no-repeat; background-position: right 12px center;">
+              <option value="" disabled {% if not form_data.semester %}selected{% endif %}>Choose Semester...</option>
+              {% for s in range(1, 6) %}
+              <option value="{{ s }}" {% if form_data.semester == s|string %}selected{% endif %}>Semester {{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Subject Selector Pill -->
+          <div style="position: relative; display: inline-flex; align-items: center;">
+            <select id="doubt-subject" name="subject" required {% if not form_data.semester %}disabled{% endif %} style="appearance: none; background: var(--white); border: 1px solid var(--gray-300); border-radius: 100px; padding: 6px 30px 6px 14px; font-size: 13px; font-weight: 600; color: var(--charcoal); cursor: pointer; outline: none; max-width: 250px; text-overflow: ellipsis; background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E&quot;); background-repeat: no-repeat; background-position: right 12px center; disabled: opacity 0.5;">
+              {% if not form_data.semester %}
+                <option value="" disabled selected>Choose Semester first...</option>
+              {% else %}
+                <option value="" disabled>Select Subject...</option>
+                {% for subj in semester_subjects[form_data.semester|int] %}
+                  <option value="{{ subj }}" {% if form_data.subject == subj %}selected{% endif %}>{{ subj }}</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+
+          <!-- Anonymous Toggle Pill -->
+          <label style="display: inline-flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--gray-300); border-radius: 100px; padding: 5px 14px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="doubt-anonymous" name="is_anonymous" value="1" {% if form_data.is_anonymous %}checked{% endif %} style="accent-color: var(--red);">
+            <span style="font-size: 12px; font-weight: 600; color: var(--gray-500);">Post Anonymously</span>
+          </label>
+
+        </div>
+
+        <!-- Editor Canvas Box (Reddit style) -->
+        <div style="background: var(--white); border: 1px solid var(--gray-300); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm);">
+          
+          <!-- Title Input: Borderless inside canvas -->
+          <div style="border-bottom: 1px solid var(--gray-100);">
+            <input
+              type="text"
+              id="doubt-title"
+              name="title"
+              placeholder="Title"
+              maxlength="200"
+              required
+              value="{{ form_data.title or '' }}"
+              style="width: 100%; border: none; padding: 18px 20px; font-size: 16px; font-weight: 700; color: var(--text-primary); outline: none; background: transparent;"
+            >
+          </div>
+
+          <!-- Body Textarea: Borderless inside canvas -->
+          <div>
+            <textarea
+              id="doubt-description"
+              name="description"
+              placeholder="Body text explaining your doubt in detail (optional)..."
+              rows="9"
+              style="width: 100%; border: none; padding: 18px 20px; font-size: 14px; line-height: 1.6; color: var(--text-primary); outline: none; resize: vertical; min-height: 200px; background: transparent;"
+            >{{ form_data.description or '' }}</textarea>
+          </div>
+
+          <!-- Bottom Action Bar inside Canvas -->
+          <div style="background: var(--gray-50); padding: 12px 20px; border-top: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            
+            <!-- Category Tag Selectors -->
+            <div class="tag-pills-select" role="group" aria-label="Select tags" style="padding: 0; gap: 6px; display: flex;">
+              {% set available_tags = ['exam', 'lab', 'theory', 'assignment', 'project'] %}
+              {% for tag in available_tags %}
+              <span>
+                <input type="checkbox" class="tag-pill-option" id="tag-{{ tag }}" name="tags" value="{{ tag }}"
+                       {% if tag in (form_data.tags or []) %}checked{% endif %}>
+                <label class="tag-pill-label" for="tag-{{ tag }}" style="padding: 5px 12px; font-size: 12px; border-radius: 100px; border-color: var(--gray-300);"># {{ tag }}</label>
+              </span>
+              {% endfor %}
+            </div>
+
+            <!-- Submit buttons -->
+            <div style="display: flex; gap: 8px;">
+              <a href="{{ url_for('main.feed') }}" class="btn btn--ghost btn--sm" style="border-radius: 100px; padding: 8px 18px; font-size: 13px;">Cancel</a>
+              <button type="submit" class="btn btn--primary btn--sm" id="submit-doubt-btn" style="border-radius: 100px; padding: 8px 22px; font-size: 13px;">
+                Post
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Character counter -->
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px; padding: 0 4px;">
+          <span class="char-counter" id="title-counter" style="font-size: 11px; color: var(--gray-400);">0/200 characters</span>
+        </div>
+
+        {% if errors %}
+        <div role="alert" style="margin-top: 16px; background: var(--red-wash); border: 1px solid #FFCCCC; border-radius: 8px; padding: 12px 16px;">
+          {% for err in errors %}
+          <p style="color: var(--red); font-size: 13px; font-weight: 600; margin-bottom: 4px;">⚠️ {{ err }}</p>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </form>
+    </div>
+
+    <!-- RIGHT SIDE: Sidebar space placeholder for their layout image -->
+    <div class="card post-sidebar-placeholder" style="border: 2px dashed var(--gray-300); background: var(--gray-50); display: flex; align-items: center; justify-content: center; height: 100%; min-height: 400px; border-radius: var(--radius-card); margin-top: 48px;">
+      <div style="text-align: center; padding: 24px; color: var(--gray-400);">
+        <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🖼️</div>
+        <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Image Placeholder</p>
+        <p style="font-size: 12px; line-height: 1.5; max-width: 240px; margin: 0 auto;">Your post sidebar image will sit here matching the height of the post editor canvas.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // Title character counter
+  const input = document.getElementById('doubt-title');
+  const counter = document.getElementById('title-counter');
+  if (input && counter) {
+    function update() {
+      const len = input.value.length;
+      const max = 200;
+      counter.textContent = len + '/' + max + ' characters';
+      counter.className = 'char-counter' + (len > 180 ? (len >= max ? ' danger' : ' warning') : '');
+    }
+    input.addEventListener('input', update);
+    update();
+  }
+
+  // Dependent dropdown: Semesters first, then Subjects
+  const semesterSelect = document.getElementById('doubt-semester');
+  const subjectSelect = document.getElementById('doubt-subject');
+  const subjectsMap = {{ semester_subjects | tojson }};
+
+  if (semesterSelect && subjectSelect) {
+    semesterSelect.addEventListener('change', function() {
+      const semId = parseInt(semesterSelect.value, 10);
+      subjectSelect.innerHTML = ''; // Clear previous options
+      
+      if (!semId || !subjectsMap[semId] || subjectsMap[semId].length === 0) {
+        subjectSelect.disabled = true;
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.disabled = true;
+        opt.selected = true;
+        opt.textContent = 'No subjects for this semester…';
+        subjectSelect.appendChild(opt);
+        return;
+      }
+
+      // Enable and populate subjects
+      subjectSelect.disabled = false;
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.disabled = true;
+      defaultOpt.selected = true;
+      defaultOpt.textContent = 'Choose Subject...';
+      subjectSelect.appendChild(defaultOpt);
+
+      subjectsMap[semId].forEach(function(sub) {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        subjectSelect.appendChild(opt);
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

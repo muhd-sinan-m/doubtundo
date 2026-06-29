@@ -1,0 +1,76 @@
+<!-- Inline replies dropdown snippet -->
+<div class="inline-replies-container">
+  
+  <div style="font-size: 13px; font-weight: 700; color: var(--gray-500); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+    <span>Discussion ({{ replies|length }} replies)</span>
+    <button type="button" class="btn-close-inline-replies" style="background:none; border:none; color:var(--gray-400); font-weight:700; cursor:pointer;" onclick="document.getElementById('replies-dropdown-{{ doubt_id }}').style.display='none'">✕ Close</button>
+  </div>
+
+  <!-- Admin answer pinned at top if exists -->
+  {% if admin_answer %}
+  <div class="admin-answer-block mb-12" style="padding: 14px 18px; border-radius: var(--radius-md); border-width: 1px; font-size: 13px; margin-bottom: 12px;">
+    <div class="admin-answer-header" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px;">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span class="user-avatar user-avatar--sm user-avatar--admin" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);">A</span>
+        <strong style="color: white !important;">@{{ admin_answer.nickname }}</strong>
+        <span class="pill pill--admin-answer" style="font-size:9px; padding:2px 6px; background: white; color: var(--red);">Admin Verified Answer</span>
+        <span style="color: rgba(255,255,255,0.4);">·</span>
+        <button type="button" class="btn-inline-reply-quote" data-nickname="{{ admin_answer.nickname }}" data-content="{{ admin_answer.content | striptags | truncate(120) | escape }}" style="background: none; border: none; color: white; font-size: 11px; cursor: pointer; padding: 0; font-weight: 700; text-decoration: underline;">Reply</button>
+      </div>
+      <div>
+        <span style="font-size: 11px; color: rgba(255, 255, 255, 0.75);">{{ admin_answer.created_at | timeago }}</span>
+      </div>
+    </div>
+    <div class="reply-content" style="margin-bottom: 0; color: white;">{{ admin_answer.content | render_markdown | safe }}</div>
+  </div>
+  {% endif %}
+
+  <!-- List of regular replies -->
+  <div class="inline-replies-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
+    {% if replies %}
+      {% for r in replies %}
+      <div class="reply-item {% if r.is_admin %}reply-item--admin{% endif %}" id="inline-reply-{{ r.id }}">
+        <div class="reply-header" style="margin-bottom: 4px; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <div class="user-avatar user-avatar--sm">{{ r.nickname[0].upper() }}</div>
+            <strong>@{{ r.nickname }}</strong>
+            {% if r.is_admin %}
+              <span class="pill pill--admin-answer" style="font-size: 9px; padding: 1px 5px;">Admin</span>
+            {% endif %}
+            {% if r.is_helpful %}
+              <span class="pill pill--resolved" style="font-size: 9px; padding: 1px 5px;">Helpful Answer</span>
+            {% endif %}
+            <span style="color: var(--gray-300);">·</span>
+            <button type="button" class="btn-inline-reply-quote" data-nickname="{{ r.nickname }}" data-content="{{ r.content | striptags | truncate(120) | escape }}" style="background: none; border: none; color: var(--red); font-size: 11px; cursor: pointer; padding: 0; font-weight: 700; margin-left: 2px;">Reply</button>
+          </div>
+          <div style="color: var(--gray-400);">
+            {{ r.created_at | timeago }}
+          </div>
+        </div>
+        <div class="reply-content">{{ r.content | render_markdown | safe }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="text-align: center; color: var(--gray-400); font-size: 13px; padding: 20px 0;">No comments yet. Start the conversation!</p>
+    {% endif %}
+  </div>
+
+  <!-- Form to reply inline -->
+  <form class="inline-reply-form" data-doubt-id="{{ doubt_id }}" style="display: flex; gap: 10px; align-items: flex-start; border-top: 1px solid var(--gray-200); padding-top: 12px;">
+    <div class="user-avatar user-avatar--sm" style="margin-top: 6px;">{{ current_user.nickname[0].upper() if current_user.nickname else '?' }}</div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+      <textarea 
+        class="form-textarea" 
+        name="content" 
+        placeholder="Write a helpful response..." 
+        rows="2" 
+        required
+        style="font-size: 13px; padding: 8px 12px; border-radius: 8px; min-height: 50px;"
+      ></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="submit" class="btn btn--primary btn--sm" style="padding: 6px 14px; font-size: 12px;">Comment</button>
+      </div>
+    </div>
+  </form>
+
+</div>

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Profile{% endblock %}
+{% block meta_description %}Your doubtundo.app dashboard — doubts posted, replies given, and activity stats{% endblock %}
+
+{% block content %}
+<div style="width: 100%; padding: 24px 20px; box-sizing: border-box;" class="fade-in-up">
+  <div class="profile-layout">
+
+    <!-- ==========================================
+         LEFT COLUMN: Dashboard Profile Sidebar (Sticky & Static on Scroll)
+         ========================================== -->
+    <div class="sticky-sidebar" role="complementary" aria-label="Profile Summary">
+      
+      <!-- Profile Widget -->
+      <div class="reddit-widget">
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
+          <div class="profile-avatar-lg" style="width: 72px; height: 72px; font-size: 24px; border-width: 3px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(205,0,0,0.15);">
+            {{ current_user.nickname[0].upper() }}
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+            <h1 style="font-weight: 800; font-size: 18px; color: var(--charcoal); margin: 0;">@{{ current_user.nickname }}</h1>
+            {% if current_user.is_admin %}
+              <span class="pill pill--admin-answer" style="font-size: 9px; padding: 2px 6px;">Admin</span>
+            {% endif %}
+          </div>
+          <p style="font-size: 11px; color: var(--gray-400); margin-top: 4px;">Member since {{ current_user.created_at | format_date }}</p>
+        </div>
+
+        <!-- Activity Stats -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-bottom: 16px; background: var(--gray-50); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--gray-200);">
+          <div>
+            <span style="font-size: 18px; font-weight: 800; color: var(--red); display: block;">{{ stats.doubts_posted }}</span>
+            <span style="font-size: 10px; color: var(--gray-500); display: block; margin-top: 2px;">Doubts</span>
+          </div>
+          <div>
+            <span style="font-size: 18px; font-weight: 800; color: var(--red); display: block;">{{ stats.replies_given }}</span>
+            <span style="font-size: 10px; color: var(--gray-500); display: block; margin-top: 2px;">Replies</span>
+          </div>
+          <div>
+            <span style="font-size: 18px; font-weight: 800; color: var(--red); display: block;">{{ stats.helpful_marks }}</span>
+            <span style="font-size: 10px; color: var(--gray-500); display: block; margin-top: 2px;">Helpful</span>
+          </div>
+        </div>
+
+        <p style="font-size: 11px; color: var(--gray-400); text-align: center; margin: 0;">Your email identity is protected and never shown publicly.</p>
+      </div>
+
+      <!-- Change Nickname Widget -->
+      <div class="reddit-widget">
+        <h3 class="reddit-widget-title" style="margin-bottom: 16px;">Customize Nickname</h3>
+        
+        {% if can_change_nickname %}
+        <form method="POST" action="{{ url_for('main.change_nickname') }}" id="change-nickname-form" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <input type="text" class="form-input" id="new-nickname" name="nickname"
+                   placeholder="Enter new nickname"
+                   maxlength="30" minlength="3"
+                   pattern="[a-zA-Z0-9_]+"
+                   required
+                   autocomplete="off"
+                   style="border-radius: 8px; font-size: 13px; padding: 10px 12px;"
+                   aria-describedby="new-nickname-check">
+            <div id="new-nickname-check" class="nickname-check" aria-live="polite"></div>
+          </div>
+          <button type="submit" class="btn btn--primary btn--sm" id="save-nickname-btn" style="width: 100%; justify-content: center; border-radius: 8px; padding: 10px;">Save Nickname</button>
+          <p class="form-hint mt-8" style="font-size: 11px;">Note: You can change your nickname once every 30 days.</p>
+        </form>
+        {% else %}
+        <div style="display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px;">
+          <span style="font-size: 18px; line-height: 1;">⏳</span>
+          <div style="flex: 1;">
+            <p style="font-size: 12px; font-weight: 700; color: var(--charcoal); margin-bottom: 2px;">Nickname locked</p>
+            <p style="font-size: 11px; color: var(--gray-500); line-height: 1.4;">Unlocked in <strong>{{ days_until_change }} days</strong> (on {{ next_change_date }}).</p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- ==========================================
+         RIGHT COLUMN: User Activity Lists (Scrollable)
+         ========================================== -->
+    <div style="display: flex; flex-direction: column; gap: 32px;">
+
+      <!-- 1. MY DOUBTS SECTION -->
+      <div id="my-doubts-section">
+        <div class="flex-between mb-16" style="border-bottom: 1px solid var(--gray-200); padding-bottom: 8px;">
+          <h2 class="section-title" style="font-size: 20px; font-weight: 800; color: var(--charcoal); margin: 0;">
+            My Doubts ({{ my_doubts | length }})
+          </h2>
+          <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary btn--sm" id="profile-post-btn">+ Post Doubt</a>
+        </div>
+
+        {% if my_doubts %}
+        <div style="display: flex; flex-direction: column; gap: var(--card-gap);" role="list">
+          {% for doubt in my_doubts %}
+          <a class="doubt-card" href="{{ url_for('main.doubt_detail', doubt_id=doubt.id) }}" role="listitem" id="my-doubt-{{ doubt.id }}" style="margin-bottom: 0;">
+            <div class="doubt-card-tags">
+              <span class="pill pill--subject">{{ doubt.subject }}</span>
+              <span class="pill pill--semester">Sem {{ doubt.semester }}</span>
+              {% if doubt.is_resolved %}<span class="pill pill--resolved">✓ Resolved</span>{% endif %}
+              {% if doubt.has_admin_answer %}<span class="pill pill--admin-answer">Admin Answer</span>{% endif %}
+            </div>
+            <div class="doubt-card-title">{{ doubt.title }}</div>
+            <div class="doubt-card-footer">
+              <span style="font-size: 12px; color: var(--text-muted);">{{ doubt.created_at | timeago }}</span>
+              <div class="doubt-card-actions">
+                <span class="stat-pill">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                  {{ doubt.upvotes }}
+                </span>
+                <span class="stat-pill">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  {{ doubt.reply_count }}
+                </span>
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="card empty-state" id="no-my-doubts" style="padding: 40px 24px;">
+          <span class="empty-state-icon">💭</span>
+          <p class="empty-state-title">No doubts posted yet</p>
+          <p class="empty-state-text">Post your first doubt to start a discussion!</p>
+          <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary" id="empty-profile-post-btn">Post a Doubt</a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- 2. MY REPLIES SECTION -->
+      <div id="my-replies-section">
+        <div class="mb-16" style="border-bottom: 1px solid var(--gray-200); padding-bottom: 8px;">
+          <h2 class="section-title" style="font-size: 20px; font-weight: 800; color: var(--charcoal); margin: 0;">
+            My Replies ({{ my_replies | length }})
+          </h2>
+        </div>
+
+        {% if my_replies %}
+        <div style="display: flex; flex-direction: column; gap: var(--card-gap);" role="list">
+          {% for reply in my_replies %}
+          <div class="card" role="listitem" id="my-reply-{{ reply.id }}" style="padding: 20px; margin-bottom: 0;">
+            <a href="{{ url_for('main.doubt_detail', doubt_id=reply.doubt_id) }}" style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px; text-decoration: none;" id="my-reply-doubt-link-{{ reply.id }}">
+              ↗ <em>{{ reply.doubt_title | truncate(70) }}</em>
+            </a>
+            <p style="font-size: 14px; color: var(--text-primary);">{{ reply.content | striptags | truncate(120) }}</p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+              <span style="font-size: 12px; color: var(--text-muted);">{{ reply.created_at | timeago }}</span>
+              {% if reply.is_helpful %}
+                <span class="helpful-mark">✅ Marked Helpful</span>
+              {% endif %}
+              <span class="stat-pill" style="margin-left: auto;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                {{ reply.upvotes }}
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="card empty-state" id="no-my-replies" style="padding: 40px 24px;">
+          <span class="empty-state-icon">💬</span>
+          <p class="empty-state-title">No replies given yet</p>
+          <p class="empty-state-text">Browse the doubt feed to help your peers!</p>
+          <a href="{{ url_for('main.feed') }}" class="btn btn--ghost" id="profile-browse-btn">Browse Feed</a>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Nickname change live check (same as setup page)
+(function() {
+  const input = document.getElementById('new-nickname');
+  const check = document.getElementById('new-nickname-check');
+  if (!input || !check) return;
+  let timer = null;
+  function setCheck(state, msg) { check.textContent = msg; check.className = 'nickname-check nickname-check--' + state; }
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    const val = this.value.trim();
+    if (!val || val.length < 3) return;
+    timer = setTimeout(() => {
+      fetch('/check-nickname?n=' + encodeURIComponent(val))
+        .then(r => r.json())
+        .then(data => setCheck(data.available ? 'ok' : 'err', data.available ? '✓ Available' : '✗ Taken'));
+    }, 450);
+  });
+})();
+</script>
+{% endblock %}

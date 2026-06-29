@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Sign In (Dev){% endblock %}
+
+{% block content %}
+<div style="min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+  
+  <!-- Beautiful split container -->
+  <div class="login-split-container fade-in-up">
+    
+    <!-- LEFT SIDE: Image/graphic placeholder space -->
+    <div class="login-image-side" style="background: var(--gray-50); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--gray-200);">
+      <div style="text-align: center; color: var(--gray-400); padding: 24px;">
+        <div style="font-size: 56px; margin-bottom: 12px; opacity: 0.5;">🔒</div>
+        <h3 style="font-weight: 700; font-size: 16px; color: var(--charcoal); margin-bottom: 6px;">Sign In Graphic</h3>
+        <p style="font-size: 12px; line-height: 1.5; max-width: 240px; margin: 0 auto;">Your login screen vector art or welcome illustration will be placed in this left column space.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE: Centered sign-in form -->
+    <div class="login-form-side">
+      
+      <!-- Header -->
+      <div style="margin-bottom: 32px;">
+        <div style="width: 48px; height: 48px; background: var(--red); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 22px; color: white;">🎓</div>
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--charcoal); letter-spacing: -0.5px; margin-bottom: 4px;">Welcome back</h1>
+        <p style="font-size: 13px; color: var(--gray-400); line-height: 1.5;">
+          Dev mode login — enter a test identity.<br>
+          <span style="color: var(--red); font-weight: 600; font-size: 11px;">🔧 SSO authentication will replace this before launch</span>
+        </p>
+      </div>
+
+      <form method="POST" action="{{ url_for('auth_bp.dev_login') }}" id="dev-login-form" novalidate>
+
+        <!-- Nickname -->
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label" for="dev-nickname" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); margin-bottom: 6px;">
+            Your Nickname
+          </label>
+          <input
+            type="text"
+            class="form-input"
+            id="dev-nickname"
+            name="nickname"
+            placeholder="e.g. cypher_knight"
+            maxlength="30"
+            minlength="2"
+            required
+            autocomplete="off"
+            autocapitalize="none"
+            autofocus
+            style="font-size: 14px; padding: 11px 14px; border-radius: 8px;"
+          >
+          <p class="form-hint" style="font-size: 11px; margin-top: 4px;">Alphanumeric and underscores only.</p>
+        </div>
+
+        <!-- Role Selector -->
+        <div class="form-group" style="margin-bottom: 24px;">
+          <label class="form-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); margin-bottom: 8px;">Sign in as</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" role="radiogroup" aria-label="Role">
+            <label style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid var(--gray-200); border-radius: 8px; cursor: pointer; transition: all 0.2s;" id="role-student-label">
+              <input type="radio" name="role" value="student" checked style="accent-color: var(--red);">
+              <div>
+                <div style="font-size: 13px; font-weight: 600;">Student</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid var(--gray-200); border-radius: 8px; cursor: pointer; transition: all 0.2s;" id="role-admin-label">
+              <input type="radio" name="role" value="admin" style="accent-color: var(--red);">
+              <div>
+                <div style="font-size: 13px; font-weight: 600;">Admin</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {% if error %}
+        <div style="background: var(--red-wash); border: 1px solid #FFCCCC; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px;" role="alert">
+          <p style="font-size: 12px; color: var(--red); font-weight: 600;">⚠️ {{ error }}</p>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn--primary" style="width: 100%; justify-content: center; font-size: 14px; padding: 12px; border-radius: 8px;" id="dev-login-submit-btn">
+          Sign In
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: 4px;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+
+      </form>
+
+      <p style="text-align: center; font-size: 11px; color: var(--gray-400); margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--gray-100);">
+        BCA Cyber Security Doubt Forum · Marian College
+      </p>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Highlight selected role card
+document.querySelectorAll('input[name="role"]').forEach(function(radio) {
+  function updateHighlight() {
+    document.querySelectorAll('input[name="role"]').forEach(function(r) {
+      const label = r.closest('label');
+      if (label) {
+        label.style.borderColor = r.checked ? 'var(--red)' : 'var(--gray-200)';
+        label.style.background = r.checked ? 'var(--red-wash)' : '';
+      }
+    });
+  }
+  radio.addEventListener('change', updateHighlight);
+  if (radio.checked) {
+    const label = radio.closest('label');
+    if (label) { label.style.borderColor = 'var(--red)'; label.style.background = 'var(--red-wash)'; }
+  }
+});
+</script>
+{% endblock %}

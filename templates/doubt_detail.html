@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block title %}{{ doubt.title | truncate(60) }}{% endblock %}
+{% block meta_description %}Discussion on: {{ doubt.title | truncate(80) }} — BCA CySec doubtundo.app{% endblock %}
+
+{% block content %}
+<div style="width: 100%; padding: 24px 20px; box-sizing: border-box;" class="fade-in-up">
+  
+  <!-- Back navigation button -->
+  <div style="margin-bottom: 12px;">
+    <a href="{{ url_for('main.feed') }}" style="font-size: 13px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; text-decoration: none;" id="back-to-feed-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Feed
+    </a>
+  </div>
+
+  <!-- Breadcrumb -->
+  <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 20px; color: var(--text-muted);">
+    <span style="opacity: 0.5;">Category:</span>
+    <span>{{ doubt.subject }}</span>
+    <span>›</span>
+    <span style="color: var(--text-primary);">Doubt Detail</span>
+  </div>
+
+  <div class="profile-layout">
+
+    <!-- ==========================================
+         LEFT COLUMN: Sidebar Context & Metadata (Sticky)
+         ========================================== -->
+    <div class="sticky-sidebar" role="complementary" aria-label="Doubt Status & Metadata">
+      
+      <!-- Combined Doubt Info Widget -->
+      <div class="reddit-widget">
+        <h3 class="reddit-widget-title" style="margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Doubt Info</h3>
+        
+        <!-- Posted By Part -->
+        <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--gray-200); margin-bottom: 12px;">
+          <div class="profile-avatar-lg" style="width: 40px; height: 40px; font-size: 14px; border-width: 2px;">
+            {% if doubt.is_anonymous %}?{% else %}{{ (doubt.nickname or 'U')[0].upper() }}{% endif %}
+          </div>
+          <div>
+            <strong style="font-size: 13px; color: var(--charcoal); display: block;">
+              {% if doubt.is_anonymous %}Anonymous{% else %}@{{ doubt.nickname }}{% endif %}
+            </strong>
+            <span style="font-size: 11px; color: var(--gray-400);">{{ doubt.created_at | timeago }}</span>
+          </div>
+        </div>
+
+        <!-- Classification Details Part -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 11px; color: var(--gray-400);">Subject</span>
+            <span class="pill pill--subject" style="font-size: 11px; padding: 2px 8px;">{{ doubt.subject }}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 11px; color: var(--gray-400);">Semester</span>
+            <span class="pill pill--semester" style="font-size: 11px; padding: 2px 8px;">Semester {{ doubt.semester }}</span>
+          </div>
+          {% if doubt.is_resolved or doubt.is_anonymous or (doubt.tags or []) %}
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; border-top: 1px solid var(--gray-100); padding-top: 8px;">
+            <span style="font-size: 11px; color: var(--gray-400); display: block;">Status &amp; Tags</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              {% if doubt.is_resolved %}
+                <span class="pill pill--resolved" style="font-size: 10px; padding: 2px 6px;">✓ Resolved</span>
+              {% endif %}
+              {% if doubt.is_anonymous %}
+                <span class="pill pill--anonymous" style="font-size: 10px; padding: 2px 6px;">Anonymous</span>
+              {% endif %}
+              {% for tag in (doubt.tags or []) %}
+                <span class="pill pill--tag" style="font-size: 10px; padding: 2px 6px;"># {{ tag }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Admin Actions Widget (Only visible to admin) -->
+      {% if current_user and current_user.is_admin %}
+      <div class="reddit-widget" style="border-color: var(--red-wash); background: #fffcfc;">
+        <h3 class="reddit-widget-title" style="margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--red);">Admin Controls</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="{{ url_for('admin_bp.admin_answer_form', doubt_id=doubt.id) }}" class="btn btn--primary btn--sm" id="admin-answer-edit-btn" style="justify-content: center; font-size: 12px; border-radius: 6px;">
+            {% if admin_answer %}Edit Admin Answer{% else %}Add Admin Answer{% endif %}
+          </a>
+          
+          {% if not doubt.is_resolved %}
+          <form method="POST" action="{{ url_for('admin_bp.resolve_doubt', doubt_id=doubt.id) }}" style="width: 100%;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit" class="btn btn--ghost btn--sm" id="resolve-doubt-btn" style="width: 100%; justify-content: center; color: var(--green-helpful); border-color: #bbf7d0; font-size: 12px; border-radius: 6px;">
+              ✓ Mark Resolved
+            </button>
+          </form>
+          {% endif %}
+          
+          <form method="POST" action="{{ url_for('admin_bp.hide_doubt', doubt_id=doubt.id) }}" style="width: 100%;" onsubmit="return confirm('Hide this doubt from the feed?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit" class="btn btn--danger btn--sm" id="hide-doubt-btn" style="width: 100%; justify-content: center; font-size: 12px; border-radius: 6px;">
+              Hide Doubt
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- ==========================================
+         RIGHT COLUMN: Doubt Content & Replies (Scrollable)
+         ========================================== -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- 1. THE DOUBT HEADER CARD -->
+      <div class="card" id="doubt-header-card" style="padding: 28px; margin-bottom: 0;">
+        <h1 class="doubt-detail-title" style="margin-top: 0; margin-bottom: 16px; font-size: 24px; font-weight: 800; line-height: 1.3;">{{ doubt.title }}</h1>
+
+        <!-- Description (Markdown rendered) -->
+        {% if doubt.description %}
+        <div class="reply-content" id="doubt-description-body" style="margin-bottom: 24px; font-size: 16.5px; line-height: 1.7; color: var(--text-primary);">
+          {{ doubt.description_html | safe }}
+        </div>
+        {% endif %}
+
+        <!-- Upvote & Counters Footer -->
+        <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--gray-200); padding-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            {% if current_user %}
+            <button
+              class="btn-upvote {% if user_has_upvoted_doubt %}voted{% endif %}"
+              id="upvote-doubt-btn"
+              data-type="doubt"
+              data-id="{{ doubt.id }}"
+              aria-label="Upvote this doubt"
+              aria-pressed="{{ 'true' if user_has_upvoted_doubt else 'false' }}"
+              style="padding: 6px 14px; font-size: 13px;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="upvote-icon" aria-hidden="true" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
+              <span class="upvote-count" style="font-weight:700;">{{ doubt.upvotes }}</span>
+            </button>
+            {% else %}
+            <span class="btn-upvote" aria-label="{{ doubt.upvotes }} upvotes" style="padding: 6px 14px; font-size: 13px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
+              {{ doubt.upvotes }}
+            </span>
+            {% endif %}
+            
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">
+              {{ reply_count }} {{ 'reply' if reply_count == 1 else 'replies' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. PINNED ADMIN ANSWER -->
+      {% if admin_answer %}
+      <div class="admin-answer-block" id="admin-answer-block" role="region" aria-label="Admin Answer">
+        <div class="admin-answer-header">
+          <div class="user-avatar user-avatar--admin" aria-hidden="true">A</div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="font-size: 14px;">Admin Answer</strong>
+              <span class="pill pill--admin-answer">📌 Pinned</span>
+            </div>
+            <div style="font-size: 11px; color: rgba(255, 255, 255, 0.75);">{{ admin_answer.created_at | timeago }}</div>
+          </div>
+        </div>
+        <div class="reply-content">
+          {{ admin_answer.content_html | safe }}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- 3. DISCUSSION REPLIES LIST -->
+      <div class="card" id="replies-card" style="padding: 24px; margin-bottom: 0;">
+        <h2 class="section-title" style="margin-top: 0; margin-bottom: 20px; font-size: 18px; border-bottom: 1px solid var(--gray-200); padding-bottom: 10px;">Discussion</h2>
+
+        {% if replies %}
+        <div id="reply-list" style="display: flex; flex-direction: column; gap: 16px;">
+          {% for reply in replies %}
+            {% if not reply.is_admin_answer %}
+            <div class="reply-item {% if reply.is_hidden %}reply-item--hidden{% endif %} {% if reply.is_admin %}reply-item--admin{% endif %}" id="reply-{{ reply.id }}"
+                 {% if reply.is_hidden %}style="opacity:0.5"{% endif %}>
+              
+               <div class="reply-header" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                 <div style="display: flex; align-items: center; gap: 8px;">
+                   <div class="user-avatar user-avatar--sm" aria-hidden="true" style="width: 26px; height: 26px; font-size: 11px; flex-shrink: 0;">
+                     {{ (reply.nickname or 'U')[0].upper() }}
+                   </div>
+                   <div>
+                      <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                        <strong style="font-size: 13px; color: var(--charcoal);">@{{ reply.nickname or 'Unknown' }}</strong>
+                        {% if reply.is_admin %}
+                          <span class="pill pill--admin-answer" style="font-size: 9px; padding: 1px 5px; font-weight: 700;">Admin</span>
+                        {% endif %}
+                        {% if reply.is_helpful %}
+                          <span class="helpful-mark" aria-label="Marked as helpful" style="font-size: 10px; padding: 1px 5px; background: #e8f5e9; border-radius: 4px; color: #2e7d32;">✅ Helpful</span>
+                        {% endif %}
+                         <span style="color: var(--gray-400); font-size: 10px;">· {{ reply.created_at | timeago }}</span>
+                      </div>
+                    </div>
+                 </div>
+               </div>
+
+              <div class="reply-content" style="font-size: 14.5px; line-height: 1.45; color: var(--text-primary);">
+                {{ reply.content_html | safe }}
+              </div>
+
+              <!-- Reply Action Bar -->
+              <div class="reply-footer" style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                {% if current_user %}
+                <button
+                  class="btn-upvote {% if reply.id in user_upvoted_replies %}voted{% endif %}"
+                  data-type="reply"
+                  data-id="{{ reply.id }}"
+                  id="upvote-reply-{{ reply.id }}"
+                  aria-label="Upvote this reply"
+                  aria-pressed="{{ 'true' if reply.id in user_upvoted_replies else 'false' }}"
+                  style="padding: 4px 10px; font-size: 11px;"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>
+                  <span class="upvote-count">{{ reply.upvotes }}</span>
+                </button>
+
+                <!-- Reply icon button -->
+                <button type="button" class="btn-reply-quote"
+                  data-nickname="{{ reply.nickname }}"
+                  data-content="{{ reply.content | striptags | truncate(120) | escape }}"
+                  id="reply-btn-{{ reply.id }}"
+                  style="display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--gray-200); border-radius: 4px; color: var(--gray-500); font-size: 11px; cursor: pointer; padding: 3px 8px; font-weight: 600; transition: color 0.15s, border-color 0.15s;"
+                  onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)';"
+                  onmouseout="this.style.color='var(--gray-500)';this.style.borderColor='var(--gray-200)';"
+                  aria-label="Reply to this comment">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  Reply
+                </button>
+
+                {% if is_doubt_owner and not reply.is_helpful %}
+                <form method="POST" action="{{ url_for('main.mark_helpful', reply_id=reply.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                  <button type="submit" class="btn btn--ghost btn--sm" id="helpful-reply-{{ reply.id }}"
+                          title="Mark this reply as most helpful"
+                          {% if any_helpful_marked %}disabled{% endif %}
+                          style="font-size: 11px; padding: 4px 8px; border-radius: 4px;">
+                    ✓ Mark Helpful
+                  </button>
+                </form>
+                {% endif %}
+
+                {% if current_user.is_admin %}
+                <form method="POST" action="{{ url_for('admin_bp.hide_reply', reply_id=reply.id) }}" style="display:inline;"
+                      onsubmit="return confirm('Hide this reply?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                  <button type="submit" class="btn btn--danger btn--sm" id="hide-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 8px; border-radius: 4px;">
+                    {{ 'Unhide' if reply.is_hidden else 'Hide' }}
+                  </button>
+                </form>
+                {% endif %}
+                {% else %}
+                <span class="btn-upvote" aria-label="{{ reply.upvotes }} upvotes" style="padding: 4px 10px; font-size: 11px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>
+                  {{ reply.upvotes }}
+                </span>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" id="no-replies-state" style="padding: 32px 16px; text-align: center;">
+          <span class="empty-state-icon" style="font-size: 36px; display: block; margin-bottom: 10px;">💬</span>
+          <p class="empty-state-title" style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">No discussion yet</p>
+          <p class="empty-state-text" style="font-size: 12px; color: var(--gray-400);">Be the first to post a helpful response!</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- 4. SUBMIT A REPLY FORM -->
+      {% if current_user %}
+      <div class="card" id="reply-box-card" style="padding: 10px 12px; margin-bottom: 0;">
+        <form method="POST" action="{{ url_for('main.post_reply', doubt_id=doubt.id) }}" id="reply-form" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+          <div class="form-group" style="margin-bottom: 8px;">
+          <div id="reply-quote-banner" style="display: none; align-items: center; justify-content: space-between; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 11px; color: var(--gray-500);">
+              <span id="reply-quote-label" style="font-weight: 600;">↩ Replying to @…</span>
+              <button type="button" id="reply-quote-clear" aria-label="Cancel quote reply"
+                style="background: none; border: none; cursor: pointer; color: var(--gray-400); font-size: 13px; line-height: 1; padding: 0 2px; font-weight: 700;">✕</button>
+            </div>
+            <textarea
+              class="form-textarea"
+              id="reply-content"
+              name="content"
+              placeholder="Write your reply here. Markdown supported — use **bold**, `code`, etc."
+              rows="2"
+              required
+              minlength="3"
+              aria-label="Write your reply"
+              style="width: 100%; border-radius: 6px; border-color: var(--gray-200); font-size: 12.5px; padding: 8px 10px;"
+            ></textarea>
+            <p class="form-hint" style="font-size: 10.5px; margin-top: 3px;">Format with Markdown. Be helpful and respectful.</p>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn--primary btn--sm" id="submit-reply-btn" style="border-radius: 4px; padding: 6px 12px; font-size: 12px;">
+              Post Reply
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" style="margin-left: 4px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+      {% else %}
+      <div class="card text-center" id="login-to-reply-card" style="padding: 32px; margin-bottom: 0;">
+         <p style="font-size: 13.5px; color: var(--gray-500); margin-bottom: 16px;">Sign in to participate in this discussion</p>
+        <a href="{{ url_for('auth_bp.login_redirect') }}" class="btn btn--primary btn--sm" id="reply-signin-btn" style="border-radius: 6px; padding: 10px 20px;">
+          Sign in to Reply
+        </a>
+      </div>
+      {% endif %}
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle reply quotes to mention another comment in the text editor
+(function() {
+  var replyArea   = document.getElementById('reply-content');
+  var banner      = document.getElementById('reply-quote-banner');
+  var bannerLabel = document.getElementById('reply-quote-label');
+  var clearBtn    = document.getElementById('reply-quote-clear');
+  var quotePrefix = '';   // tracks the current quote prefix so we can strip it
+
+  document.querySelectorAll('.btn-reply-quote').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var nickname = this.getAttribute('data-nickname');
+      var content  = this.getAttribute('data-content');
+      if (!replyArea) return;
+
+      // Strip any existing quote prefix before adding new one
+      if (quotePrefix && replyArea.value.startsWith(quotePrefix)) {
+        replyArea.value = replyArea.value.slice(quotePrefix.length);
+      }
+
+      quotePrefix = '> @' + nickname + ': "' + content + '"\n\n';
+      replyArea.value = quotePrefix + replyArea.value;
+      replyArea.focus();
+
+      // Show banner
+      if (banner) {
+        bannerLabel.textContent = '↩ Replying to @' + nickname;
+        banner.style.display = 'flex';
+      }
+
+      // Scroll to reply form
+      var replyCard = document.getElementById('reply-box-card');
+      if (replyCard) replyCard.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Clear button — strip quote prefix and hide banner
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      if (replyArea && quotePrefix && replyArea.value.startsWith(quotePrefix)) {
+        replyArea.value = replyArea.value.slice(quotePrefix.length);
+      }
+      quotePrefix = '';
+      if (banner) banner.style.display = 'none';
+      if (replyArea) replyArea.focus();
+    });
+  }
+
+  // If user manually edits away the quote, hide the banner
+  if (replyArea) {
+    replyArea.addEventListener('input', function() {
+      if (quotePrefix && !replyArea.value.startsWith(quotePrefix)) {
+        quotePrefix = '';
+        if (banner) banner.style.display = 'none';
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

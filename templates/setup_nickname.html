@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Choose Your Nickname{% endblock %}
+{% block meta_description %}Set up your nickname for doubtundo.app — your public identity on the forum{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="card nickname-setup-card fade-in-up" id="nickname-setup-card">
+
+    <!-- Welcome Header -->
+    <div class="text-center mb-24">
+      <div style="font-size: 52px; margin-bottom: 12px;">👋</div>
+      <h1 style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Welcome to doubtundo!</h1>
+      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6;">
+        Choose a nickname — this is how you'll appear on the forum.<br>
+        Your real name and email are <strong style="color: var(--text-primary);">never shown publicly</strong>.
+      </p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth_bp.setup_nickname') }}" id="nickname-form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+
+      <div class="form-group">
+        <label class="form-label" for="nickname-input">
+          Your Nickname <span class="required">*</span>
+        </label>
+        <input
+          type="text"
+          class="form-input"
+          id="nickname-input"
+          name="nickname"
+          placeholder="e.g. cypher_knight"
+          maxlength="30"
+          minlength="3"
+          pattern="[a-zA-Z0-9_]+"
+          required
+          autocomplete="off"
+          autocapitalize="none"
+          aria-describedby="nickname-check nickname-hint"
+          value="{{ old_value or '' }}"
+        >
+        <div id="nickname-check" class="nickname-check" aria-live="polite" style="min-height: 20px;"></div>
+        <p class="form-hint" id="nickname-hint">
+          3–30 characters. Letters, numbers, and underscores only.<br>
+          You can change this once every 30 days.
+        </p>
+      </div>
+
+      <!-- Anonymous info -->
+      <div class="card card--teal card--flat mb-16" style="padding: 14px 16px;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <span style="font-size: 20px; flex-shrink: 0;">🔒</span>
+          <div>
+            <p style="font-size: 13px; font-weight: 600; color: var(--teal-dark); margin-bottom: 2px;">Your identity is protected</p>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+              When posting doubts, you can optionally toggle <strong>Anonymous</strong> to hide even your nickname. Admins can always see your real identity in the admin panel.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--primary" style="width: 100%; justify-content: center;" id="nickname-submit-btn">
+        Save Nickname &amp; Continue
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+
+      {% if error %}
+      <p style="color: var(--red-danger); font-size: 13px; text-align: center; margin-top: 12px;" role="alert">{{ error }}</p>
+      {% endif %}
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const input = document.getElementById('nickname-input');
+  const check = document.getElementById('nickname-check');
+  const btn = document.getElementById('nickname-submit-btn');
+  let timer = null;
+  let lastValid = false;
+
+  function setCheck(state, msg) {
+    check.textContent = msg;
+    check.className = 'nickname-check nickname-check--' + state;
+  }
+
+  function checkNickname(val) {
+    if (!val) { setCheck('', ''); lastValid = false; return; }
+    if (val.length < 3) { setCheck('err', '✗ Too short (min 3 characters)'); lastValid = false; return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(val)) { setCheck('err', '✗ Only letters, numbers, underscores allowed'); lastValid = false; return; }
+    setCheck('loading', '⏳ Checking availability…');
+    btn.disabled = true;
+    fetch('/check-nickname?n=' + encodeURIComponent(val))
+      .then(r => r.json())
+      .then(data => {
+        if (data.available) {
+          setCheck('ok', '✓ ' + val + ' is available!');
+          lastValid = true;
+          btn.disabled = false;
+        } else {
+          setCheck('err', '✗ That nickname is taken. Try another.');
+          lastValid = false;
+          btn.disabled = false;
+        }
+      })
+      .catch(() => {
+        setCheck('', '');
+        lastValid = true;
+        btn.disabled = false;
+      });
+  }
+
+  if (input) {
+    input.addEventListener('input', function() {
+      clearTimeout(timer);
+      timer = setTimeout(() => checkNickname(this.value.trim()), 450);
+    });
+    if (input.value) checkNickname(input.value.trim());
+  }
+})();
+</script>
+{% endblock %}

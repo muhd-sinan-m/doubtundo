@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+
+{% block content %}
+<div class="page-container page-container--wide" id="admin-panel">
+
+  <!-- Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h1 style="font-size: 26px; font-weight: 700; color: var(--text-primary);">Admin Panel</h1>
+      <p style="font-size: 14px; color: var(--text-muted);">doubtundo.app — Marian College BCA CySec</p>
+    </div>
+    <!-- Stats pills -->
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <div style="padding: 10px 18px; background: var(--mint-wash); border: 1px solid var(--mint-border); border-radius: var(--radius-pill); text-align: center;">
+        <div style="font-size: 20px; font-weight: 700; color: var(--teal);">{{ stats.total_doubts }}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Total Doubts</div>
+      </div>
+      <div style="padding: 10px 18px; background: var(--mint-wash); border: 1px solid var(--mint-border); border-radius: var(--radius-pill); text-align: center;">
+        <div style="font-size: 20px; font-weight: 700; color: var(--teal);">{{ stats.total_replies }}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Total Replies</div>
+      </div>
+      <div style="padding: 10px 18px; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: var(--radius-pill); text-align: center;">
+        <div style="font-size: 20px; font-weight: 700; color: #166534;">{{ stats.resolved_count }}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Resolved</div>
+      </div>
+      <div style="padding: 10px 18px; background: var(--gray-100); border: 1px solid var(--card-border); border-radius: var(--radius-pill); text-align: center;">
+        <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">{{ stats.total_users }}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Members</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DOUBTS TABLE ===== -->
+  <div class="card" id="admin-doubts-card">
+    <div class="section-header mb-16">
+      <h2 class="section-title">All Doubts</h2>
+      <!-- Filters -->
+      <form method="GET" id="admin-filter-form" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <input type="hidden" name="tab" value="doubts">
+        <select class="filter-select" name="status" onchange="this.form.submit()" id="admin-status-filter" aria-label="Filter by status">
+          <option value="">All Status</option>
+          <option value="resolved" {% if filters.status == 'resolved' %}selected{% endif %}>Resolved</option>
+          <option value="unresolved" {% if filters.status == 'unresolved' %}selected{% endif %}>Unresolved</option>
+        </select>
+        <select class="filter-select" name="subject" onchange="this.form.submit()" id="admin-subject-filter" aria-label="Filter by subject">
+          <option value="">All Subjects</option>
+          {% for subj in subjects %}
+          <option value="{{ subj }}" {% if filters.subject == subj %}selected{% endif %}>{{ subj }}</option>
+          {% endfor %}
+        </select>
+        <select class="filter-select" name="semester" onchange="this.form.submit()" id="admin-sem-filter" aria-label="Filter by semester">
+          <option value="">All Semesters</option>
+          {% for s in range(1, 7) %}
+          <option value="{{ s }}" {% if filters.semester == s|string %}selected{% endif %}>Sem {{ s }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <div class="admin-table-wrap">
+      <table class="admin-table" id="admin-doubts-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Subject</th>
+            <th>Sem</th>
+            <th>Posted By</th>
+            <th>Real Email</th>
+            <th>Replies</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if doubts %}
+          {% for doubt in doubts %}
+          <tr id="admin-doubt-row-{{ doubt.id }}">
+            <td style="max-width: 220px;">
+              <a href="{{ url_for('main.doubt_detail', doubt_id=doubt.id) }}" style="font-weight: 600; font-size: 13px; color: var(--teal);" id="admin-doubt-link-{{ doubt.id }}">
+                {{ doubt.title | truncate(60) }}
+              </a>
+              <div style="font-size: 11px; color: var(--text-muted);">{{ doubt.created_at | timeago }}</div>
+            </td>
+            <td><span class="pill pill--subject" style="font-size: 10px;">{{ doubt.subject }}</span></td>
+            <td><span class="pill pill--semester" style="font-size: 10px;">{{ doubt.semester }}</span></td>
+            <td style="font-size: 13px;">
+              {% if doubt.is_anonymous %}
+                <em style="color: var(--text-muted);">Anonymous</em><br>
+                <small style="color: var(--text-muted);">({{ doubt.poster_nickname }})</small>
+              {% else %}
+                @{{ doubt.poster_nickname }}
+              {% endif %}
+            </td>
+            <td style="font-size: 12px; color: var(--text-muted); font-family: monospace;">
+              {{ doubt.poster_email }}
+            </td>
+            <td style="font-size: 13px; text-align: center;">{{ doubt.reply_count }}</td>
+            <td>
+              {% if doubt.is_resolved %}
+                <span class="pill pill--resolved" style="font-size: 10px;">Resolved</span>
+              {% else %}
+                <span class="pill pill--tag" style="font-size: 10px;">Open</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <a href="{{ url_for('admin_bp.admin_answer_form', doubt_id=doubt.id) }}" class="btn btn--ghost btn--sm" id="admin-answer-btn-{{ doubt.id }}" style="font-size: 11px; padding: 4px 10px;">
+                  {% if doubt.has_admin_answer %}Edit Ans.{% else %}+ Ans.{% endif %}
+                </a>
+                {% if not doubt.is_resolved %}
+                <form method="POST" action="{{ url_for('admin_bp.resolve_doubt', doubt_id=doubt.id) }}" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                  <button type="submit" class="btn btn--ghost btn--sm" id="resolve-btn-{{ doubt.id }}" style="font-size: 11px; padding: 4px 10px; color: var(--green-helpful);">Resolve</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('admin_bp.hide_doubt', doubt_id=doubt.id) }}" style="display:inline;"
+                      onsubmit="return confirm('Hide this doubt?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                  <button type="submit" class="btn btn--danger btn--sm" id="hide-btn-{{ doubt.id }}" style="font-size: 11px; padding: 4px 10px;">Hide</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 32px;">No doubts found</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== REPLIES TABLE ===== -->
+  <div class="card" id="admin-replies-card">
+    <div class="section-header mb-16">
+      <h2 class="section-title">Recent Replies</h2>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table" id="admin-replies-table">
+        <thead>
+          <tr>
+            <th>Reply</th>
+            <th>By</th>
+            <th>Real Email</th>
+            <th>Doubt</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if replies %}
+          {% for reply in replies %}
+          <tr id="admin-reply-row-{{ reply.id }}" {% if reply.is_hidden %}style="opacity:0.5"{% endif %}>
+            <td style="max-width: 240px; font-size: 13px;">{{ reply.content | striptags | truncate(80) }}</td>
+            <td style="font-size: 13px;">@{{ reply.nickname }}</td>
+            <td style="font-size: 12px; color: var(--text-muted); font-family: monospace;">{{ reply.email }}</td>
+            <td style="font-size: 12px; max-width: 150px;">
+              <a href="{{ url_for('main.doubt_detail', doubt_id=reply.doubt_id) }}" style="color: var(--teal);" id="reply-doubt-link-{{ reply.id }}">
+                {{ reply.doubt_title | truncate(40) }}
+              </a>
+            </td>
+            <td>
+              {% if reply.is_hidden %}
+                <span class="pill pill--tag" style="font-size: 10px;">Hidden</span>
+              {% elif reply.is_admin_answer %}
+                <span class="pill pill--admin-answer" style="font-size: 10px;">Admin Ans.</span>
+              {% elif reply.is_helpful %}
+                <span class="pill pill--resolved" style="font-size: 10px;">Helpful</span>
+              {% else %}
+                <span style="font-size: 12px; color: var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('admin_bp.hide_reply_route', reply_id=reply.id) }}" style="display:inline;"
+                    onsubmit="return confirm('Toggle hide for this reply?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <button type="submit" class="btn {% if reply.is_hidden %}btn--ghost{% else %}btn--danger{% endif %} btn--sm" id="toggle-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 10px;">
+                  {{ 'Unhide' if reply.is_hidden else 'Hide' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">No replies found</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== USERS TABLE ===== -->
+  <div class="card" id="admin-users-card">
+    <div class="section-header mb-16">
+      <h2 class="section-title">Members</h2>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table" id="admin-users-table">
+        <thead>
+          <tr>
+            <th>Nickname</th>
+            <th>Real Email</th>
+            <th>Admin</th>
+            <th>Joined</th>
+            <th>Doubts</th>
+            <th>Replies</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr id="admin-user-row-{{ user.id }}">
+            <td style="font-weight: 600; font-size: 13px;">@{{ user.nickname or '(no nickname)' }}</td>
+            <td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">{{ user.email }}</td>
+            <td>
+              {% if user.is_admin %}
+                <span class="pill pill--admin-answer" style="font-size: 10px;">Admin</span>
+              {% else %}
+                <span style="font-size: 12px; color: var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size: 12px; color: var(--text-muted);">{{ user.created_at | format_date }}</td>
+            <td style="font-size: 13px; text-align: center;">{{ user.doubt_count }}</td>
+            <td style="font-size: 13px; text-align: center;">{{ user.reply_count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

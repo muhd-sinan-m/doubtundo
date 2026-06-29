@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# Environment
+.env
+*.env
+
+# Flask session files
+flask_session/
+/tmp/flask_sessions/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Render / Heroku
+.render/
+# Local environment variables (Contains your Supabase database password & JWT_SECRET)
+.env
+.env.local
+
+# Local SQLite databases (if you have local test databases)
+*.db
+*.sqlite3
+
+# Flask Session files (Session folders stored locally)
+flask_session/

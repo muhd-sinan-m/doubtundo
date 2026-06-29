@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}Doubt Feed{% endblock %}
+{% block meta_description %}Ask and answer academic doubts — BCA Cyber Security at Marian College Kuttikkanam{% endblock
+%}
+
+{% block content %}
+
+<!-- =====================================================
+     HERO SECTION — Full Width, Two Column
+     ===================================================== -->
+<section class="hero-section stagger" id="hero-section" aria-label="Hero">
+
+  <!-- LEFT: Bold headings + feature pills -->
+  <div>
+    <!-- Eyebrow label -->
+    <div class="hero-eyebrow">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.5">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+      </svg>
+      BCA · Marian College
+    </div>
+
+    <!-- Main Heading — large, bold, impactful -->
+    <h1 class="hero-heading">
+      doubt<span class="accent"> undo.</span>
+    </h1>
+
+    <p class="hero-subtext">
+      The dedicated forum for BCA Cyber Security students — post doubts, get admin-verified answers, and help your
+      classmates.
+    </p>
+
+    <!-- Feature highlights as interactive pills/cards -->
+    <div class="hero-features" role="list" aria-label="Platform features">
+      <div class="hero-feature" role="listitem">
+        <div class="hero-feature-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
+        </div>
+        <span class="hero-feature-text">Doubt feed for every subject &amp; semester</span>
+      </div>
+      <div class="hero-feature" role="listitem">
+        <div class="hero-feature-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <span class="hero-feature-text">Admin-verified pinned answers</span>
+      </div>
+      <div class="hero-feature" role="listitem">
+        <div class="hero-feature-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+        </div>
+        <span class="hero-feature-text">Post anonymously if needed</span>
+      </div>
+    </div>
+
+    <!-- CTA Buttons -->
+    <div class="hero-cta-group">
+      {% if current_user %}
+      <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary btn--lg" id="hero-post-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Post a Doubt
+      </a>
+      <a href="#doubt-feed" class="btn btn--ghost btn--lg" id="hero-browse-btn">Browse Feed</a>
+      {% else %}
+      <a href="{{ url_for('auth_bp.login_redirect') }}" class="btn btn--primary btn--lg" id="hero-signin-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+        Sign In to Ask
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT: Logo Image -->
+  <div class="hero-img-container" style="display: flex; align-items: center; justify-content: center; width: 100%;">
+    <img src="{{ url_for('static', filename='img/logo_main.webp') }}" alt="doubtundo logo" 
+         style="width: 100%; max-width: 480px; height: auto; border-radius: var(--radius-card); border: 1px solid var(--gray-200); box-shadow: var(--shadow-sm); display: block;">
+  </div>
+
+</section>
+
+{% macro render_cartoon_avatar(type) %}
+  {% if type == 'robot' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <rect x="5" y="7" width="14" height="12" rx="3"/>
+      <line x1="9" y1="12" x2="9" y2="12" stroke-width="3"/>
+      <line x1="15" y1="12" x2="15" y2="12" stroke-width="3"/>
+      <path d="M10 16h4"/>
+      <line x1="12" y1="7" x2="12" y2="4"/>
+      <circle cx="12" cy="3" r="0.5" fill="currentColor"/>
+    </svg>
+  {% elif type == 'alien' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <circle cx="12" cy="13" r="7"/>
+      <path d="M12 6V3m-4 5L6 5m8 3l2-3"/>
+      <circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <path d="M10 16s1 1 2 1 2-1 2-1"/>
+    </svg>
+  {% elif type == 'ghost' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <path d="M18 10a6 6 0 0 0-12 0v8c0 1 1.5.5 2 0s1.5.5 2 0 1.5.5 2 0 1.5.5 2 0 2 0 2 0v-8z"/>
+      <circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/>
+      <ellipse cx="12" cy="13" rx="0.8" ry="1.2" fill="currentColor" stroke="none"/>
+    </svg>
+  {% elif type == 'cat' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <path d="M12 5c4.5 0 6 3.5 6 8.5a6 6 0 0 1-12 0c0-5 1.5-8.5 6-8.5z"/>
+      <path d="M6 9L3 6l1.5 4.5M18 9l3-3-1.5 4.5"/>
+      <circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <path d="M11 15h2"/>
+    </svg>
+  {% elif type == 'bear' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 58%; height: 58%;">
+      <circle cx="6" cy="7" r="2"/>
+      <circle cx="18" cy="7" r="2"/>
+      <circle cx="12" cy="13" r="7"/>
+      <circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <rect x="11" y="14.5" width="2" height="2" rx="1" fill="currentColor" stroke="none"/>
+    </svg>
+  {% elif type == 'monster' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <rect x="5" y="6" width="14" height="13" rx="4"/>
+      <path d="M7 6l-1-3M17 6l1-3"/>
+      <circle cx="12" cy="11" r="2.5"/>
+      <circle cx="12" cy="11" r="0.8" fill="currentColor"/>
+      <path d="M9 16s1.5 1 3 1 3-1 3-1"/>
+    </svg>
+  {% elif type == 'wizard' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 58%; height: 58%;">
+      <path d="M12 2L4 12h16L12 2z"/>
+      <circle cx="12" cy="15" r="4.5"/>
+      <circle cx="10" cy="14" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14" cy="14" r="1" fill="currentColor" stroke="none"/>
+      <path d="M10 17h4"/>
+    </svg>
+  {% elif type == 'frog' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 58%; height: 58%;">
+      <ellipse cx="12" cy="14" rx="8" ry="6"/>
+      <circle cx="7.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="16.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="9.5" cy="13" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="13" r="1" fill="currentColor" stroke="none"/>
+      <path d="M9 16.5c1 1 5 1 6 0"/>
+    </svg>
+  {% elif type == 'ninja' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <circle cx="12" cy="12" r="8"/>
+      <rect x="5.5" y="10" width="13" height="3" rx="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="9" cy="11.5" r="0.8" fill="var(--white)" stroke="none"/>
+      <circle cx="15" cy="11.5" r="0.8" fill="var(--white)" stroke="none"/>
+    </svg>
+  {% elif type == 'puppy' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <circle cx="12" cy="13" r="7"/>
+      <path d="M5 9c0-2 2-3 2-3s1 2 1 4-1 2-2 2-1-1-1-3zm14 0c0-2-2-3-2-3s-1 2-1 4 1 2 2 2 1-1 1-3z"/>
+      <circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+      <ellipse cx="12" cy="14.5" rx="1" ry="0.8" fill="currentColor" stroke="none"/>
+    </svg>
+  {% else %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 55%; height: 55%;">
+      <circle cx="12" cy="12" r="8"/>
+      <path d="M6 10h12v3H6z"/>
+      <path d="M10 16s1 1 2 1 2-1 2-1"/>
+    </svg>
+  {% endif %}
+{% endmacro %}
+
+<!-- =====================================================
+     COMMUNITY AVATAR GRID — Full Width Dark Section
+     ===================================================== -->
+<section class="community-section stagger" id="community-section" aria-label="Community">
+  <!-- Avatar grid -->
+  <div style="margin-bottom: 32px;" aria-hidden="true">
+    <div class="avatar-grid-row" style="margin-bottom: 8px;">
+      {% set row1 = [
+      {'type':'robot','a':true,'b':'2','n':false,'on':false,'bg':'rgba(2,132,199,0.15)','color':'#38bdf8','border':'rgba(56,189,248,0.4)'},
+      {'type':'alien','a':false,'b':'','n':false,'on':true,'bg':'rgba(22,163,74,0.15)','color':'#4ade80','border':'rgba(74,222,128,0.4)'},
+      {'type':'ghost','a':true,'b':'','n':true,'on':false,'bg':'rgba(8,145,178,0.15)','color':'#22d3ee','border':'rgba(34,211,238,0.4)'},
+      {'type':'cat','a':true,'b':'5','n':false,'on':true,'bg':'rgba(217,119,6,0.15)','color':'#fbbf24','border':'rgba(251,191,36,0.4)'},
+      {'type':'bear','a':false,'b':'','n':false,'on':false,'bg':'rgba(234,88,12,0.15)','color':'#fb923c','border':'rgba(251,146,60,0.4)'},
+      ] %}
+      {% for av in row1 %}
+      <div class="avatar-item">
+        <div class="avatar-circle {% if av.a %}av--active{% endif %}" style="background: {{ av.bg }}; color: {{ av.color }}; border-color: {{ av.border }};">
+          {{ render_cartoon_avatar(av.type) }}
+        </div>
+        {% if av.b %}<div class="avatar-badge">{{ av.b }}</div>{% endif %}
+        {% if av.n %}<div class="badge-new">NEW</div>{% endif %}
+        {% if av.on %}<div class="online-dot"></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="avatar-grid-row">
+      {% set row2 = [
+      {'type':'monster','a':false,'b':'','n':false,'on':false,'bg':'rgba(219,39,119,0.15)','color':'#f472b6','border':'rgba(244,114,182,0.4)'},
+      {'type':'wizard','a':true,'b':'1','n':false,'on':true,'bg':'rgba(147,51,234,0.15)','color':'#c084fc','border':'rgba(192,132,252,0.4)'},
+      {'type':'frog','a':false,'b':'','n':false,'on':false,'bg':'rgba(5,150,105,0.15)','color':'#34d399','border':'rgba(52,211,153,0.4)'},
+      {'type':'ninja','a':true,'b':'','n':false,'on':true,'bg':'rgba(71,85,105,0.15)','color':'#94a3b8','border':'rgba(148,163,184,0.4)'},
+      {'type':'puppy','a':false,'b':'3','n':false,'on':false,'bg':'rgba(225,29,72,0.15)','color':'#fb7185','border':'rgba(251,113,133,0.4)'},
+      {'type':'cyberpunk','a':true,'b':'','n':true,'on':false,'bg':'rgba(79,70,229,0.15)','color':'#818cf8','border':'rgba(129,140,248,0.4)'},
+      ] %}
+      {% for av in row2 %}
+      <div class="avatar-item">
+        <div class="avatar-circle {% if av.a %}av--active{% endif %} {% if loop.index == 3 %}av--lg{% endif %}" style="background: {{ av.bg }}; color: {{ av.color }}; border-color: {{ av.border }};">
+          {{ render_cartoon_avatar(av.type) }}
+        </div>
+        {% if av.b %}<div class="avatar-badge">{{ av.b }}</div>{% endif %}
+        {% if av.n %}<div class="badge-new">NEW</div>{% endif %}
+        {% if av.on %}<div class="online-dot"></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <h2 class="community-headline">Academic doubt forum for BCA CySec</h2>
+  <p class="community-sub">Post. Reply. Resolve.</p>
+</section>
+
+<!-- =====================================================
+     FEATURES + "WANT TO ASK?" — Full Width
+     ===================================================== -->
+<section class="features-section stagger" id="features-section" aria-label="Features">
+
+  <!-- LEFT: Features list -->
+  <div>
+    <div class="features-label">Why doubtundo?</div>
+    <h2 class="features-title">Inspiration and access</h2>
+    <p class="features-sub">
+      Understand your subjects better, together.<br>
+      Learn from seniors and faculty who've been there.
+    </p>
+    <div class="features-list">
+      <div class="features-list-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+        </svg>
+        Subject-curated doubt archive
+      </div>
+      <div class="features-list-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        Admin-verified answers with confidence
+      </div>
+      <div class="features-list-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M9 21V9" />
+        </svg>
+        Semester &amp; subject-wise filtering
+      </div>
+      <div class="features-list-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        Post anonymously when needed
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Chat preview card (now in Features Section) -->
+  <div class="hero-preview" aria-label="Sample doubt and reply" style="width:100%;">
+    <div class="hero-preview-label">Live example</div>
+    <div class="bubble-wrap">
+      <!-- Student question -->
+      <div class="bubble bubble--sender">
+        <div class="bubble-avatar">CS</div>
+        <div class="bubble-content">
+          <div class="bubble-meta">
+            <strong>cyber_student</strong>
+            <span>Today, 9:15 AM</span>
+          </div>
+          <div class="bubble-text">
+            Can someone explain ARP Spoofing vs DNS Poisoning? 🤔 I keep confusing them in exams.
+          </div>
+        </div>
+      </div>
+      <!-- Admin verified answer -->
+      <div class="bubble bubble--receiver bubble--admin">
+        <div class="bubble-avatar ba--red">A</div>
+        <div class="bubble-content">
+          <div class="bubble-meta">
+            <strong>Admin</strong>
+            <span>9:22 AM</span>
+            <span class="pill pill--admin-answer" style="font-size:9px; padding:1px 7px;">✓ Verified</span>
+          </div>
+          <div class="bubble-text">
+            ARP Spoofing = Layer 2 (MAC spoofing, local network). DNS Poisoning = Layer 7 (domain names). Both are MITM
+            but at different OSI layers! 🎯
+          </div>
+        </div>
+      </div>
+    {% if current_user %}
+    <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary mt-16"
+      style="width:100%; justify-content:center;" id="hero-features-post-btn">
+      Ask your doubt now →
+    </a>
+    {% else %}
+    <a href="{{ url_for('auth_bp.login_redirect') }}" class="btn btn--dark mt-16" style="width:100%; justify-content:center;"
+      id="hero-features-signin-btn">
+      Sign in to ask →
+    </a>
+    {% endif %}
+    </div>
+  </div>
+
+</section>
+
+<!-- =====================================================
+     DOUBT FEED — if logged in
+     ===================================================== -->
+{% if current_user %}
+<div id="doubt-feed" style="padding: 40px 0;" aria-label="Doubt feed">
+  <div class="feed-section">
+
+    <!-- Feed header -->
+    <div class="flex-between mb-16">
+      <h2 style="font-size:22px; font-weight:800; letter-spacing:-0.5px; color:var(--charcoal);">Doubt Feed</h2>
+      <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary btn--sm" id="feed-post-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Post Doubt
+      </a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar" id="filter-bar" role="search" aria-label="Filter doubts">
+      <form method="GET" action="{{ url_for('main.index') }}" id="filter-form" style="display: contents;">
+        <select class="filter-select" name="semester" id="filter-semester" onchange="this.form.submit()"
+          aria-label="Filter by semester">
+          <option value="">All Semesters</option>
+          {% for s in range(1, 7) %}
+          <option value="{{ s }}" {% if filters.semester==s|string %}selected{% endif %}>Semester {{ s }}</option>
+          {% endfor %}
+        </select>
+
+        <select class="filter-select" name="subject" id="filter-subject" onchange="this.form.submit()"
+          aria-label="Filter by subject">
+          <option value="">All Subjects</option>
+          {% for subj in subjects %}
+          <option value="{{ subj }}" {% if filters.subject==subj %}selected{% endif %}>{{ subj }}</option>
+          {% endfor %}
+        </select>
+
+        <label class="filter-toggle {% if filters.unanswered %}active{% endif %}" for="filter-unanswered">
+          <input type="checkbox" id="filter-unanswered" name="unanswered" value="1" onchange="this.form.submit()" {% if
+            filters.unanswered %}checked{% endif %}>
+          Unanswered
+        </label>
+
+        <label class="filter-toggle {% if filters.admin_answer %}active{% endif %}" for="filter-admin">
+          <input type="checkbox" id="filter-admin" name="admin_answer" value="1" onchange="this.form.submit()" {% if
+            filters.admin_answer %}checked{% endif %}>
+          Has Admin Answer
+        </label>
+      </form>
+
+      <!-- Sort tabs -->
+      <div class="sort-tabs" style="margin-left: auto;" role="tablist">
+        {% for sort_key, sort_label in [('latest', 'Latest'), ('upvotes', '↑ Top'), ('replies', '💬 Active')] %}
+        <a href="?{{ query_string }}&sort={{ sort_key }}"
+          class="sort-tab {% if current_sort == sort_key %}active{% endif %}" role="tab" id="sort-{{ sort_key }}-tab">{{
+          sort_label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Doubt Cards -->
+    <div id="doubt-list" aria-label="List of doubts">
+      {% if doubts %}
+      {% for doubt in doubts %}
+      <a class="doubt-card" href="{{ url_for('main.doubt_detail', doubt_id=doubt.id) }}" id="doubt-card-{{ doubt.id }}"
+        aria-label="Doubt: {{ doubt.title }}">
+        <div class="doubt-card-tags">
+          <span class="pill pill--subject">{{ doubt.subject }}</span>
+          <span class="pill pill--semester">Sem {{ doubt.semester }}</span>
+          {% if doubt.is_resolved %}<span class="pill pill--resolved">✓ Resolved</span>{% endif %}
+          {% if doubt.has_admin_answer %}<span class="pill pill--admin-answer">Admin Answer</span>{% endif %}
+          {% if doubt.is_anonymous %}<span class="pill pill--anonymous">Anonymous</span>{% endif %}
+          {% for tag in (doubt.tags or []) %}<span class="pill pill--tag"># {{ tag }}</span>{% endfor %}
+        </div>
+        <div class="doubt-card-title">{{ doubt.title }}</div>
+        {% if doubt.description %}
+        <div class="doubt-card-excerpt">{{ doubt.description | striptags | truncate(160) }}</div>
+        {% endif %}
+        <div class="doubt-card-footer">
+          <div class="doubt-card-meta">
+            <div class="user-avatar user-avatar--sm" aria-hidden="true">
+              {% if doubt.is_anonymous %}?{% else %}{{ (doubt.nickname or 'U')[0].upper() }}{% endif %}
+            </div>
+            <span>{% if doubt.is_anonymous %}Anonymous{% else %}@{{ doubt.nickname }}{% endif %}</span>
+            <span style="opacity:.4">·</span>
+            <span>{{ doubt.created_at | timeago }}</span>
+          </div>
+          <div class="doubt-card-actions">
+            <span class="stat-pill">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+              {{ doubt.upvotes }}
+            </span>
+            <span class="stat-pill {% if doubt.reply_count > 0 %}has-admin{% endif %}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+              {{ doubt.reply_count }}
+            </span>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+      {% else %}
+      <div class="card empty-state" id="empty-feed">
+        <span class="empty-state-icon">🔍</span>
+        <p class="empty-state-title">No doubts found</p>
+        <p class="empty-state-text">
+          {% if filters.semester or filters.subject or filters.unanswered or filters.admin_answer %}
+          Try changing or clearing your filters.
+          {% else %}
+          Be the first to post a doubt!
+          {% endif %}
+        </p>
+        <a href="{{ url_for('main.post_doubt') }}" class="btn btn--primary" id="empty-post-btn">Post the First Doubt</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% else %}
+<!-- Logged-out About & CTA Section -->
+<div class="about-section" id="login-cta-section">
+  <h2 class="about-heading">About</h2>
+  <div class="about-grid">
+    <!-- LEFT: Image -->
+    <div class="about-left">
+      <img src="{{ url_for('static', filename='img/logo_signup.webp') }}" alt="About doubtundo">
+    </div>
+    <!-- RIGHT: Details -->
+    <div class="about-right">
+      <p class="about-lead">
+        <strong>doubtundo.app</strong> is a dedicated academic forum created for BCA Cyber Security students. It provides a structured space to post subject-specific doubts, receive verified answers, and collaborate effectively.
+      </p>
+      <p class="about-text">
+        Ask questions anonymously, filter discussions by semester and subject, and learn collaboratively from seniors and peers.
+      </p>
+      <a href="{{ url_for('auth_bp.login_redirect') }}" class="btn btn--primary btn--lg" id="cta-signin-btn">
+        Sign In to Get Started
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

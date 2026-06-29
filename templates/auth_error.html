@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="card nickname-setup-card text-center">
+    <!-- Error icon -->
+    <div style="font-size: 56px; margin-bottom: 16px;">🔐</div>
+    <h1 style="font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Authentication Failed</h1>
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6;">
+      {{ error_message or "Your sign-in link has expired or is invalid. Please try signing in again from padikkunnundo." }}
+    </p>
+    <a href="{{ padikku_url }}" class="btn btn--primary" id="back-to-padikku-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Go back to padikkunnundo
+    </a>
+    <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+      The sign-in link expires in 5 minutes. Request a fresh link from padikkunnundo.
+    </p>
+  </div>
+</div>
+{% endblock %}
