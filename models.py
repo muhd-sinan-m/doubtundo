@@ -214,7 +214,7 @@ SEMESTER_SUBJECTS = {
         "Software Engineering",
         "Quantitative Techniques",
         "Feature Engineering",
-        "Introduction to Cyber Security",
+        "Introduction to Information Security",
         "Interactive Web Application Development Using PHP and MySQL",
         "Basics of Data Analytics Using Spreadsheet"
     ],

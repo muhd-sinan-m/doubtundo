@@ -1,6 +1,6 @@
 """
 app.py — Flask application factory for doubtundo.app
-Academic doubt forum for BCA Cyber Security students at Marian College Kuttikkanam
+Academic doubt forum for BCA students at Marian College Kuttikkanam
 """
 
 import os
@@ -194,7 +194,7 @@ def register_routes(app):
     @app.context_processor
     def inject_globals():
         return {
-            'current_user': g.current_user,
+            'current_user': getattr(g, 'current_user', None),
             'subjects': SUBJECTS,
             'semester_subjects': SEMESTER_SUBJECTS,
         }

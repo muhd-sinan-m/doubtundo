@@ -1502,6 +1502,21 @@ select {
   }
 }
 
+@media (max-width: 480px) {
+  .flash-messages {
+    top: 76px;
+    right: 16px;
+    left: 16px;
+    max-width: none;
+  }
+  .flash {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+}
+
 /* ============================================================
    19. PROFILE PAGE
    ============================================================ */
