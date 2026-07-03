@@ -119,6 +119,11 @@
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                   <button type="submit" class="btn btn--danger btn--sm" id="hide-btn-{{ doubt.id }}" style="font-size: 11px; padding: 4px 10px;">Hide</button>
                 </form>
+                <form method="POST" action="{{ url_for('admin_bp.delete_doubt', doubt_id=doubt.id) }}" style="display:inline;"
+                      onsubmit="return confirm('WARNING: Permanently delete this doubt and all its replies? This action cannot be undone.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                  <button type="submit" class="btn btn--danger btn--sm" id="delete-btn-{{ doubt.id }}" style="font-size: 11px; padding: 4px 10px; background: #dc2626; border-color: #dc2626; color: white;">Delete</button>
+                </form>
               </div>
             </td>
           </tr>
@@ -181,6 +186,11 @@
                   {{ 'Unhide' if reply.is_hidden else 'Hide' }}
                 </button>
               </form>
+              <form method="POST" action="{{ url_for('admin_bp.delete_reply', reply_id=reply.id) }}" style="display:inline;"
+                    onsubmit="return confirm('Are you sure you want to permanently delete this reply?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <button type="submit" class="btn btn--danger btn--sm" id="delete-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 10px; background: #dc2626; border-color: #dc2626; color: white;">Delete</button>
+              </form>
             </td>
           </tr>
           {% endfor %}
@@ -209,6 +219,7 @@
             <th>Joined</th>
             <th>Doubts</th>
             <th>Replies</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -226,6 +237,17 @@
             <td style="font-size: 12px; color: var(--text-muted);">{{ user.created_at | format_date }}</td>
             <td style="font-size: 13px; text-align: center;">{{ user.doubt_count }}</td>
             <td style="font-size: 13px; text-align: center;">{{ user.reply_count }}</td>
+            <td>
+              {% if not user.is_admin %}
+              <form method="POST" action="{{ url_for('admin_bp.delete_user', user_id=user.id) }}" style="display:inline;"
+                    onsubmit="return confirm('WARNING: Are you sure you want to permanently delete this user? This will delete all their doubts, replies, and upvotes and cannot be undone!')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <button type="submit" class="btn btn--danger btn--sm" id="delete-user-{{ user.id }}" style="font-size: 11px; padding: 4px 10px; background: #dc2626; border-color: #dc2626; color: white;">Delete</button>
+              </form>
+              {% else %}
+              <span style="font-size: 12px; color: var(--text-muted);">—</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

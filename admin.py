@@ -12,6 +12,7 @@ from models import (
     get_user_by_id, get_doubt, create_reply, get_admin_answer,
     get_all_doubts_admin, get_all_replies_admin, get_all_users_admin,
     get_admin_stats, resolve_doubt_db, hide_doubt_db, hide_reply,
+    delete_user_db, delete_doubt_db, delete_reply_db,
     SUBJECTS
 )
 
@@ -150,6 +151,45 @@ def hide_reply_route(reply_id):
 
     action = "unhidden" if current_hidden else "hidden"
     flash(f"Reply {action}.", "info")
+    return redirect(request.referrer or url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/user/<user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    """Delete a user and cascade delete all their data."""
+    try:
+        delete_user_db(user_id)
+        flash("User deleted successfully. 🗑️", "success")
+    except Exception as e:
+        current_app.logger.error(f"Delete user error: {e}")
+        flash("Error deleting user.", "error")
+    return redirect(request.referrer or url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/doubt/<doubt_id>/delete', methods=['POST'])
+@admin_required
+def delete_doubt(doubt_id):
+    """Delete a doubt and cascade delete all replies on it."""
+    try:
+        delete_doubt_db(doubt_id)
+        flash("Doubt deleted successfully. 🗑️", "success")
+    except Exception as e:
+        current_app.logger.error(f"Delete doubt error: {e}")
+        flash("Error deleting doubt.", "error")
+    return redirect(request.referrer or url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/reply/<reply_id>/delete', methods=['POST'])
+@admin_required
+def delete_reply(reply_id):
+    """Delete a reply."""
+    try:
+        delete_reply_db(reply_id)
+        flash("Reply deleted successfully. 🗑️", "success")
+    except Exception as e:
+        current_app.logger.error(f"Delete reply error: {e}")
+        flash("Error deleting reply.", "error")
     return redirect(request.referrer or url_for('admin_bp.panel'))
 
 

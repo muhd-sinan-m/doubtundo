@@ -98,6 +98,13 @@
               Hide Doubt
             </button>
           </form>
+
+          <form method="POST" action="{{ url_for('admin_bp.delete_doubt', doubt_id=doubt.id) }}" style="width: 100%;" onsubmit="return confirm('WARNING: Are you sure you want to permanently delete this doubt and all its replies? This action cannot be undone.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit" class="btn btn--danger btn--sm" id="delete-doubt-btn" style="width: 100%; justify-content: center; font-size: 12px; border-radius: 6px; background: #dc2626; border-color: #dc2626; color: white;">
+              Delete Doubt
+            </button>
+          </form>
         </div>
       </div>
       {% endif %}
@@ -245,15 +252,23 @@
                 </form>
                 {% endif %}
 
-                {% if current_user.is_admin %}
-                <form method="POST" action="{{ url_for('admin_bp.hide_reply', reply_id=reply.id) }}" style="display:inline;"
-                      onsubmit="return confirm('Hide this reply?')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-                  <button type="submit" class="btn btn--danger btn--sm" id="hide-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 8px; border-radius: 4px;">
-                    {{ 'Unhide' if reply.is_hidden else 'Hide' }}
-                  </button>
-                </form>
-                {% endif %}
+                 {% if current_user.is_admin %}
+                 <form method="POST" action="{{ url_for('admin_bp.hide_reply_route', reply_id=reply.id) }}" style="display:inline;"
+                       onsubmit="return confirm('Hide this reply?')">
+                   <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                   <button type="submit" class="btn btn--danger btn--sm" id="hide-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 8px; border-radius: 4px;">
+                     {{ 'Unhide' if reply.is_hidden else 'Hide' }}
+                   </button>
+                 </form>
+
+                 <form method="POST" action="{{ url_for('admin_bp.delete_reply', reply_id=reply.id) }}" style="display:inline;"
+                       onsubmit="return confirm('Are you sure you want to permanently delete this reply?')">
+                   <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                   <button type="submit" class="btn btn--danger btn--sm" id="delete-reply-{{ reply.id }}" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; background: #dc2626; border-color: #dc2626; color: white;">
+                     Delete
+                   </button>
+                 </form>
+                 {% endif %}
                 {% else %}
                 <span class="btn-upvote" aria-label="{{ reply.upvotes }} upvotes" style="padding: 4px 10px; font-size: 11px;">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>

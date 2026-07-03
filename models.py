@@ -214,7 +214,7 @@ SEMESTER_SUBJECTS = {
         "Software Engineering",
         "Quantitative Techniques",
         "Feature Engineering",
-        "Introduction to Information Security",
+        "Introduction to Cyber Security",
         "Interactive Web Application Development Using PHP and MySQL",
         "Basics of Data Analytics Using Spreadsheet"
     ],
@@ -575,6 +575,34 @@ def hide_reply(reply_id: str, hide: bool = True):
         conn.commit()
     finally:
         conn.close()
+
+
+def delete_user_db(user_id: str):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_doubt_db(doubt_id: str):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM doubts WHERE id=?", (doubt_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_reply_db(reply_id: str):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM replies WHERE id=?", (reply_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
 
 
 # ============================================================
