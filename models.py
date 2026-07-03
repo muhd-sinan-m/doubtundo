@@ -113,20 +113,47 @@ class PostgresConnectionWrapper:
             self._conn.close()
 
 def get_db():
-    try:
-        pool = get_connection_pool()
-        raw_conn = pool.getconn()
+    pool = get_connection_pool()
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url:
+        raise RuntimeError("DATABASE_URL environment variable is not set")
+
+    # Try up to 3 times to get a healthy connection from the pool.
+    # Connections can be silently killed by Render / Supabase idle timeouts;
+    # conn.closed won't detect those — only a live ping will.
+    last_err = None
+    for _attempt in range(3):
+        try:
+            raw_conn = pool.getconn()
+        except Exception as e:
+            # Pool itself is exhausted or broken; fall back to a direct connection
+            last_err = e
+            break
+
+        # If psycopg2 already knows the connection is dead, discard it.
         if raw_conn.closed != 0:
             pool.putconn(raw_conn, close=True)
-            raw_conn = pool.getconn()
-        return PostgresConnectionWrapper(raw_conn, pool=pool)
-    except Exception as e:
-        # Fallback to direct connection if pool fails
-        db_url = os.environ.get('DATABASE_URL')
-        if not db_url:
-            raise RuntimeError("DATABASE_URL environment variable is not set")
-        raw_conn = psycopg2.connect(db_url)
-        return PostgresConnectionWrapper(raw_conn)
+            continue
+
+        # Ping the server to detect silently-aborted TCP connections.
+        try:
+            cur = raw_conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            raw_conn.reset()  # Roll back any leftover transaction state
+            return PostgresConnectionWrapper(raw_conn, pool=pool)
+        except Exception as e:
+            last_err = e
+            # Discard this broken connection and try again
+            try:
+                pool.putconn(raw_conn, close=True)
+            except Exception:
+                pass
+            continue
+
+    # All pool attempts failed — open a fresh direct connection as a last resort.
+    raw_conn = psycopg2.connect(db_url)
+    return PostgresConnectionWrapper(raw_conn)
 
 def row_to_dict(row) -> dict | None:
     if row is None:
