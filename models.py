@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import psycopg2
@@ -48,6 +49,7 @@ from psycopg2.pool import ThreadedConnectionPool
 
 _connection_pool = None
 _pool_pid = None
+_connection_last_used = {}  # maps raw connection ID to float timestamp
 
 def get_connection_pool():
     global _connection_pool, _pool_pid
@@ -108,6 +110,7 @@ class PostgresConnectionWrapper:
                 self._conn.rollback()  # Rollback any pending transaction state
             except:
                 pass
+            _connection_last_used[id(self._conn)] = time.time()
             self._pool.putconn(self._conn)
         else:
             self._conn.close()
@@ -119,8 +122,6 @@ def get_db():
         raise RuntimeError("DATABASE_URL environment variable is not set")
 
     # Try up to 3 times to get a healthy connection from the pool.
-    # Connections can be silently killed by Render / Supabase idle timeouts;
-    # conn.closed won't detect those — only a live ping will.
     last_err = None
     for _attempt in range(3):
         try:
@@ -133,23 +134,36 @@ def get_db():
         # If psycopg2 already knows the connection is dead, discard it.
         if raw_conn.closed != 0:
             pool.putconn(raw_conn, close=True)
+            if id(raw_conn) in _connection_last_used:
+                del _connection_last_used[id(raw_conn)]
             continue
 
-        # Ping the server to detect silently-aborted TCP connections.
-        try:
-            cur = raw_conn.cursor()
-            cur.execute("SELECT 1")
-            cur.close()
-            raw_conn.reset()  # Roll back any leftover transaction state
-            return PostgresConnectionWrapper(raw_conn, pool=pool)
-        except Exception as e:
-            last_err = e
-            # Discard this broken connection and try again
+        # Check connection status using idle time to avoid expensive database pings.
+        # Connections can be silently killed by Render/Supabase idle timeouts,
+        # but if it was used very recently (e.g. < 15 seconds ago), we can safely bypass the ping.
+        now = time.time()
+        conn_id = id(raw_conn)
+        last_used = _connection_last_used.get(conn_id, 0)
+
+        if now - last_used > 15:
+            # Ping the server to detect silently-aborted TCP connections.
             try:
-                pool.putconn(raw_conn, close=True)
-            except Exception:
-                pass
-            continue
+                cur = raw_conn.cursor()
+                cur.execute("SELECT 1")
+                cur.close()
+                raw_conn.reset()  # Roll back any leftover transaction state
+            except Exception as e:
+                last_err = e
+                # Discard this broken connection and try again
+                try:
+                    pool.putconn(raw_conn, close=True)
+                except Exception:
+                    pass
+                if conn_id in _connection_last_used:
+                    del _connection_last_used[conn_id]
+                continue
+
+        return PostgresConnectionWrapper(raw_conn, pool=pool)
 
     # All pool attempts failed — open a fresh direct connection as a last resort.
     raw_conn = psycopg2.connect(db_url)
