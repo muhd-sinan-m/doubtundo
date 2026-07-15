@@ -478,9 +478,9 @@ def list_doubts(
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
         order = {
-            'upvotes': 'ORDER BY d.upvotes DESC',
+            'upvotes': 'ORDER BY upvotes DESC',
             'replies': 'ORDER BY reply_count DESC',
-        }.get(sort, 'ORDER BY d.created_at DESC')
+        }.get(sort, 'ORDER BY created_at DESC')
 
         # Build HAVING clause for unanswered / admin_answer filters so filtering
         # happens in Postgres instead of Python (avoids fetching rows we discard).
