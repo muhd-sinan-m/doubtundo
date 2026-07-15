@@ -1,6 +1,7 @@
 flask>=3.0.3
 flask-session>=0.8.0
 flask-limiter>=3.7.0
+flask-compress>=1.14
 supabase>=2.4.6
 pyjwt>=2.8.0
 python-dotenv>=1.0.1

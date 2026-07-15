@@ -49,24 +49,61 @@ from psycopg2.pool import ThreadedConnectionPool
 
 _connection_pool = None
 _pool_pid = None
-_connection_last_used = {}  # maps raw connection ID to float timestamp
+_connection_last_used = {}  # maps raw connection id to float timestamp
 
-def get_connection_pool():
+# Supabase PgBouncer (transaction mode) pool settings:
+#   min=1  — keep at least one warm connection ready
+#   max=5  — stay well within Supabase free-tier connection limits
+#   keepalives help detect silently-dropped TCP connections
+_POOL_MIN = 1
+_POOL_MAX = 5
+_IDLE_PING_AFTER = 10  # seconds before we health-check an idle connection
+
+
+def _make_pool(db_url: str) -> ThreadedConnectionPool:
+    """Create a new ThreadedConnectionPool with PgBouncer-friendly options."""
+    return ThreadedConnectionPool(
+        _POOL_MIN, _POOL_MAX,
+        dsn=db_url,
+        # TCP keepalives so the OS detects a silently-dropped connection
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=5,
+    )
+
+
+def get_connection_pool() -> ThreadedConnectionPool:
     global _connection_pool, _pool_pid
     current_pid = os.getpid()
     if _connection_pool is None or _pool_pid != current_pid:
-        if _connection_pool:
+        if _connection_pool is not None:
             try:
                 _connection_pool.closeall()
-            except:
+            except Exception:
                 pass
         db_url = os.environ.get('DATABASE_URL')
         if not db_url:
             raise RuntimeError("DATABASE_URL environment variable is not set")
-        # Initialize pool: minimum 2 connections, maximum 20 connections
-        _connection_pool = ThreadedConnectionPool(2, 20, dsn=db_url)
+        _connection_pool = _make_pool(db_url)
         _pool_pid = current_pid
     return _connection_pool
+
+
+def _discard_conn(pool: ThreadedConnectionPool, raw_conn) -> None:
+    """Return a broken connection to the pool and force-close it."""
+    conn_id = id(raw_conn)
+    _connection_last_used.pop(conn_id, None)
+    try:
+        raw_conn.close()
+    except Exception:
+        pass
+    try:
+        # putconn marks it as returned; pool will not reuse a closed connection
+        pool.putconn(raw_conn)
+    except Exception:
+        pass
+
 
 class PostgresConnectionWrapper:
     def __init__(self, conn, pool=None):
@@ -79,21 +116,21 @@ class PostgresConnectionWrapper:
         return self._conn.cursor(*args, **kwargs)
 
     def execute(self, sql, params=None):
-        # Swap SQLite parameter ? with PostgreSQL %s
+        # Swap SQLite-style ? placeholders with PostgreSQL %s
         sql = sql.replace('?', '%s')
-        
-        # Handle tags serialization (convert stringified JSON arrays back to lists for PostgreSQL array support)
+
+        # Coerce stringified JSON arrays → Python lists for PostgreSQL array columns
         if params:
             new_params = []
             for p in params:
                 if isinstance(p, str) and p.startswith('[') and p.endswith(']'):
                     try:
                         p = json.loads(p)
-                    except:
+                    except Exception:
                         pass
                 new_params.append(p)
             params = tuple(new_params)
-            
+
         cur = self.cursor()
         cur.execute(sql, params)
         return cur
@@ -105,67 +142,72 @@ class PostgresConnectionWrapper:
         self._conn.rollback()
 
     def close(self):
+        """Return the underlying connection to the pool (or close it if no pool)."""
         if self._pool:
             try:
-                self._conn.rollback()  # Rollback any pending transaction state
-            except:
+                # Always rollback before returning so the next caller gets a clean state.
+                # NOTE: do NOT call reset() here — it issues SET commands that are
+                # unsupported in PgBouncer transaction-mode pooling.
+                self._conn.rollback()
+            except Exception:
                 pass
             _connection_last_used[id(self._conn)] = time.time()
-            self._pool.putconn(self._conn)
+            try:
+                self._pool.putconn(self._conn)
+            except Exception:
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
         else:
             self._conn.close()
 
-def get_db():
+
+def get_db() -> 'PostgresConnectionWrapper':
+    """Obtain a healthy DB connection from the pool.
+
+    Retries up to 3 times, discarding stale/broken connections along the way.
+    Falls back to a fresh direct connection if the pool is exhausted.
+    """
     pool = get_connection_pool()
     db_url = os.environ.get('DATABASE_URL')
     if not db_url:
         raise RuntimeError("DATABASE_URL environment variable is not set")
 
-    # Try up to 3 times to get a healthy connection from the pool.
     last_err = None
     for _attempt in range(3):
         try:
             raw_conn = pool.getconn()
         except Exception as e:
-            # Pool itself is exhausted or broken; fall back to a direct connection
+            # Pool exhausted or internally broken — fall through to direct connect
             last_err = e
             break
 
-        # If psycopg2 already knows the connection is dead, discard it.
+        # psycopg2 already knows this connection is dead
         if raw_conn.closed != 0:
-            pool.putconn(raw_conn, close=True)
-            if id(raw_conn) in _connection_last_used:
-                del _connection_last_used[id(raw_conn)]
+            _discard_conn(pool, raw_conn)
             continue
 
-        # Check connection status using idle time to avoid expensive database pings.
-        # Connections can be silently killed by Render/Supabase idle timeouts,
-        # but if it was used very recently (e.g. < 15 seconds ago), we can safely bypass the ping.
         now = time.time()
         conn_id = id(raw_conn)
         last_used = _connection_last_used.get(conn_id, 0)
 
-        if now - last_used > 15:
-            # Ping the server to detect silently-aborted TCP connections.
+        if now - last_used > _IDLE_PING_AFTER:
+            # Light health-check: just execute SELECT 1 and rollback any open txn.
+            # We deliberately skip reset() because it issues SET commands that
+            # PgBouncer (transaction mode) does not support between transactions.
             try:
-                cur = raw_conn.cursor()
-                cur.execute("SELECT 1")
-                cur.close()
-                raw_conn.reset()  # Roll back any leftover transaction state
+                with raw_conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                raw_conn.rollback()  # close the health-check transaction cleanly
             except Exception as e:
                 last_err = e
-                # Discard this broken connection and try again
-                try:
-                    pool.putconn(raw_conn, close=True)
-                except Exception:
-                    pass
-                if conn_id in _connection_last_used:
-                    del _connection_last_used[conn_id]
+                _discard_conn(pool, raw_conn)
                 continue
 
         return PostgresConnectionWrapper(raw_conn, pool=pool)
 
-    # All pool attempts failed — open a fresh direct connection as a last resort.
+    # All pool attempts failed — open a fresh direct connection as last resort
     raw_conn = psycopg2.connect(db_url)
     return PostgresConnectionWrapper(raw_conn)
 
@@ -427,10 +469,10 @@ def list_doubts(
         conditions = []
         params = []
         if semester:
-            conditions.append("d.semester=?")
+            conditions.append("d.semester=%s")
             params.append(int(semester))
         if subject:
-            conditions.append("d.subject=?")
+            conditions.append("d.subject=%s")
             params.append(subject)
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
@@ -440,19 +482,33 @@ def list_doubts(
             'replies': 'ORDER BY reply_count DESC',
         }.get(sort, 'ORDER BY d.created_at DESC')
 
+        # Build HAVING clause for unanswered / admin_answer filters so filtering
+        # happens in Postgres instead of Python (avoids fetching rows we discard).
+        having_parts = []
+        if unanswered:
+            having_parts.append("reply_count = 0")
+        if admin_answer:
+            having_parts.append("has_admin_answer > 0")
+        # Wrap in a subquery so HAVING can reference computed alias columns
+        # without requiring GROUP BY on every column in d.*.
+        having_clause = ("HAVING " + " AND ".join(having_parts)) if having_parts else ""
+
         sql = f"""
-            SELECT d.*,
-                   u.nickname,
-                   u.email AS poster_email,
-                   (SELECT COUNT(*) FROM replies r
-                    WHERE r.doubt_id=d.id AND r.is_hidden=FALSE AND r.is_admin_answer=FALSE) AS reply_count,
-                   (SELECT COUNT(*) FROM replies r JOIN users u2 ON u2.id=r.user_id
-                    WHERE r.doubt_id=d.id AND u2.is_admin=TRUE) AS has_admin_answer
-            FROM doubts d
-            LEFT JOIN users u ON u.id=d.user_id
-            {where}
+            SELECT * FROM (
+                SELECT d.*,
+                       u.nickname,
+                       u.email AS poster_email,
+                       (SELECT COUNT(*) FROM replies r
+                        WHERE r.doubt_id=d.id AND r.is_hidden=FALSE AND r.is_admin_answer=FALSE) AS reply_count,
+                       (SELECT COUNT(*) FROM replies r JOIN users u2 ON u2.id=r.user_id
+                        WHERE r.doubt_id=d.id AND u2.is_admin=TRUE) AS has_admin_answer
+                FROM doubts d
+                LEFT JOIN users u ON u.id=d.user_id
+                {where}
+            ) sub
+            {having_clause}
             {order}
-            LIMIT ?
+            LIMIT %s
         """
         params.append(limit)
         rows = rows_to_dicts(conn.execute(sql, params).fetchall())
@@ -465,11 +521,6 @@ def list_doubts(
                 r['tags'] = []
             r['is_anonymous'] = bool(r.get('is_anonymous'))
             r['is_resolved'] = bool(r.get('is_resolved'))
-            # Post-filter
-            if unanswered and r['reply_count'] > 0:
-                continue
-            if admin_answer and not r['has_admin_answer']:
-                continue
             result.append(r)
 
         return result
@@ -726,17 +777,17 @@ def get_all_replies_admin(limit: int = 100) -> list[dict]:
 def get_all_users_admin() -> list[dict]:
     conn = get_db()
     try:
-        users = rows_to_dicts(conn.execute(
-            "SELECT * FROM users ORDER BY created_at DESC"
-        ).fetchall())
+        # Fetch users with doubt_count and reply_count in one query
+        # to avoid N+1 (previously 2 extra queries per user).
+        users = rows_to_dicts(conn.execute("""
+            SELECT u.*,
+                   (SELECT COUNT(*) FROM doubts d WHERE d.user_id=u.id) AS doubt_count,
+                   (SELECT COUNT(*) FROM replies r WHERE r.user_id=u.id) AS reply_count
+            FROM users u
+            ORDER BY u.created_at DESC
+        """).fetchall())
         for u in users:
             u['is_admin'] = bool(u.get('is_admin'))
-            u['doubt_count'] = conn.execute(
-                "SELECT COUNT(*) FROM doubts WHERE user_id=?", (u['id'],)
-            ).fetchone()[0]
-            u['reply_count'] = conn.execute(
-                "SELECT COUNT(*) FROM replies WHERE user_id=?", (u['id'],)
-            ).fetchone()[0]
         return users
     finally:
         conn.close()
@@ -823,12 +874,22 @@ def get_user_replies(user_id: str) -> list[dict]:
 
 
 def get_user_stats(user_id: str) -> dict:
+    """Return doubts_posted, replies_given, and helpful_marks in a single DB round-trip."""
     conn = get_db()
     try:
+        row = conn.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM doubts   WHERE user_id=%s)                          AS doubts_posted,
+                (SELECT COUNT(*) FROM replies  WHERE user_id=%s)                          AS replies_given,
+                (SELECT COUNT(*) FROM replies  WHERE user_id=%s AND is_helpful=TRUE)      AS helpful_marks
+            """,
+            (user_id, user_id, user_id)
+        ).fetchone()
         return {
-            'doubts_posted': conn.execute("SELECT COUNT(*) FROM doubts WHERE user_id=?", (user_id,)).fetchone()[0],
-            'replies_given': conn.execute("SELECT COUNT(*) FROM replies WHERE user_id=?", (user_id,)).fetchone()[0],
-            'helpful_marks': conn.execute("SELECT COUNT(*) FROM replies WHERE user_id=? AND is_helpful=TRUE", (user_id,)).fetchone()[0],
+            'doubts_posted': row['doubts_posted'] or 0,
+            'replies_given': row['replies_given'] or 0,
+            'helpful_marks': row['helpful_marks'] or 0,
         }
     finally:
         conn.close()

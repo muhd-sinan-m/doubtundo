@@ -5,8 +5,9 @@ Academic doubt forum for BCA students at Marian College Kuttikkanam
 
 import os
 import re
+import hashlib
 from datetime import datetime, timezone, timedelta
-from functools import wraps
+from functools import wraps, lru_cache
 
 import markdown
 import bleach
@@ -16,6 +17,7 @@ from flask import (
     session, flash, jsonify, abort, g
 )
 from flask_session import Session
+from flask_compress import Compress
 
 # Load .env for local development
 load_dotenv()
@@ -31,9 +33,24 @@ def create_app():
     # ── Secret key
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(32))
 
-    # ── Server-side session (filesystem for Render free tier)
-    app.config['SESSION_TYPE'] = os.environ.get('SESSION_TYPE', 'filesystem')
-    app.config['SESSION_FILE_DIR'] = os.environ.get('SESSION_FILE_DIR', os.path.join(os.getcwd(), 'flask_session'))
+    # ── Static file caching: tell browsers to cache CSS/JS for 1 year.
+    #    The ?v=3 cache-buster in base.html handles invalidation on deploy.
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year in seconds
+
+    # ── Gzip compression for all text responses (HTML, JSON, CSS)
+    app.config['COMPRESS_MIMETYPES'] = [
+        'text/html', 'text/css', 'application/json',
+        'application/javascript', 'text/javascript',
+    ]
+    app.config['COMPRESS_LEVEL'] = 6  # balanced speed vs ratio
+    app.config['COMPRESS_MIN_SIZE'] = 500  # don't compress tiny responses
+    Compress(app)
+
+    # ── Session: use Flask's built-in signed cookie session.
+    #    The session only stores user_id + email (tiny payload), so cookies are ideal:
+    #    - Zero disk I/O per request (unlike filesystem sessions)
+    #    - Survives Render re-deploys without logging users out
+    #    - Requires FLASK_SECRET_KEY to be a stable value in .env (not os.urandom)
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
         days=int(os.environ.get('SESSION_LIFETIME_DAYS', 7))
@@ -41,12 +58,7 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV', '') == 'production'
-
-    # ── Session dir
-    session_dir = app.config['SESSION_FILE_DIR']
-    os.makedirs(session_dir, exist_ok=True)
-
-    Session(app)
+    # SESSION_COOKIE_NAME defaults to 'session' — fine as-is
 
     # ── Register blueprints
     from auth import auth_bp
@@ -82,6 +94,23 @@ def register_template_filters(app):
         'thead', 'tbody', 'tr', 'th', 'td', 'span', 'del', 'ins',
     ]
     ALLOWED_ATTRS = {'a': ['href', 'title', 'target'], 'code': ['class']}
+
+    @lru_cache(maxsize=512)
+    def _cached_render_markdown(content_hash: str, text: str) -> str:
+        """LRU-cached markdown render. Keyed by SHA-1 hash so identical
+        content is only rendered once per process lifetime."""
+        html = markdown.markdown(
+            text,
+            extensions=['fenced_code', 'tables', 'nl2br', 'sane_lists']
+        )
+        return bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
+
+    @app.template_filter('render_markdown')
+    def render_markdown_filter(text):
+        if not text:
+            return ''
+        content_hash = hashlib.sha1(text.encode()).hexdigest()
+        return _cached_render_markdown(content_hash, text)
 
     @app.template_filter('timeago')
     def timeago_filter(dt_value):
@@ -121,17 +150,6 @@ def register_template_filters(app):
             except Exception:
                 return dt_value
         return dt_value.strftime('%B %d, %Y')
-
-    @app.template_filter('render_markdown')
-    def render_markdown_filter(text):
-        if not text:
-            return ''
-        html = markdown.markdown(
-            text,
-            extensions=['fenced_code', 'tables', 'nl2br', 'sane_lists']
-        )
-        clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
-        return clean
 
     @app.template_filter('striptags')
     def striptags_filter(text):
