@@ -106,9 +106,10 @@ def _discard_conn(pool: ThreadedConnectionPool, raw_conn) -> None:
 
 
 class PostgresConnectionWrapper:
-    def __init__(self, conn, pool=None):
+    def __init__(self, conn, pool=None, request_scoped=False):
         self._conn = conn
         self._pool = pool
+        self.request_scoped = request_scoped
 
     def cursor(self, *args, **kwargs):
         if 'cursor_factory' not in kwargs:
@@ -142,6 +143,12 @@ class PostgresConnectionWrapper:
         self._conn.rollback()
 
     def close(self):
+        """No-op if connection is request-scoped (reused across request)."""
+        if self.request_scoped:
+            return
+        self.actual_close()
+
+    def actual_close(self):
         """Return the underlying connection to the pool (or close it if no pool)."""
         if self._pool:
             try:
@@ -163,12 +170,7 @@ class PostgresConnectionWrapper:
             self._conn.close()
 
 
-def get_db() -> 'PostgresConnectionWrapper':
-    """Obtain a healthy DB connection from the pool.
-
-    Retries up to 3 times, discarding stale/broken connections along the way.
-    Falls back to a fresh direct connection if the pool is exhausted.
-    """
+def _acquire_raw_connection():
     pool = get_connection_pool()
     db_url = os.environ.get('DATABASE_URL')
     if not db_url:
@@ -199,17 +201,41 @@ def get_db() -> 'PostgresConnectionWrapper':
             try:
                 with raw_conn.cursor() as cur:
                     cur.execute("SELECT 1")
-                raw_conn.rollback()  # close the health-check transaction cleanly
+                # Rollback health check only if autocommit is False
+                if not raw_conn.autocommit:
+                    raw_conn.rollback()  # close the health-check transaction cleanly
             except Exception as e:
                 last_err = e
                 _discard_conn(pool, raw_conn)
                 continue
 
-        return PostgresConnectionWrapper(raw_conn, pool=pool)
+        return raw_conn, pool
 
     # All pool attempts failed — open a fresh direct connection as last resort
     raw_conn = psycopg2.connect(db_url)
-    return PostgresConnectionWrapper(raw_conn)
+    return raw_conn, None
+
+
+def get_db() -> 'PostgresConnectionWrapper':
+    """Obtain a healthy DB connection from the pool.
+
+    Uses Flask's `g` request context to cache the connection if available,
+    enables autocommit by default to optimize latency, and retries on failure.
+    """
+    from flask import has_app_context, g
+
+    if has_app_context():
+        if 'db_conn' not in g:
+            raw_conn, pool = _acquire_raw_connection()
+            # Enable autocommit for fast query round-trips
+            raw_conn.autocommit = True
+            g.db_conn = PostgresConnectionWrapper(raw_conn, pool=pool, request_scoped=True)
+        return g.db_conn
+    else:
+        # Non-Flask context (CLI/standalone scripts)
+        raw_conn, pool = _acquire_raw_connection()
+        raw_conn.autocommit = True
+        return PostgresConnectionWrapper(raw_conn, pool=pool, request_scoped=False)
 
 def row_to_dict(row) -> dict | None:
     if row is None:
@@ -654,6 +680,11 @@ def delete_user_db(user_id: str):
 def delete_doubt_db(doubt_id: str):
     conn = get_db()
     try:
+        # Delete upvotes for replies on this doubt
+        conn.execute("DELETE FROM upvotes WHERE target_id IN (SELECT id FROM replies WHERE doubt_id=?)", (doubt_id,))
+        # Delete upvotes for the doubt itself
+        conn.execute("DELETE FROM upvotes WHERE target_id=?", (doubt_id,))
+        # Delete the doubt itself (cascades to replies)
         conn.execute("DELETE FROM doubts WHERE id=?", (doubt_id,))
         conn.commit()
     finally:

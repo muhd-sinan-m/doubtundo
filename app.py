@@ -75,6 +75,14 @@ def create_app():
     # ── Error handlers
     register_error_handlers(app)
 
+    # ── Teardown database connection at request end
+    @app.teardown_appcontext
+    def teardown_db(exception):
+        from flask import g
+        db_conn = g.pop('db_conn', None)
+        if db_conn is not None:
+            db_conn.actual_close()
+
     # ── Init SQLite schema on startup
     from models import init_db
     with app.app_context():
@@ -430,6 +438,33 @@ def register_routes(app):
             is_doubt_owner=is_doubt_owner,
             any_helpful_marked=any_helpful_marked,
         )
+
+    # ── Delete Doubt (User/Owner)
+    @app.route('/doubt/<doubt_id>/delete', methods=['POST'], endpoint='main.delete_doubt')
+    @login_required
+    def delete_doubt(doubt_id):
+        from models import get_doubt, delete_doubt_db
+        doubt = get_doubt(doubt_id)
+        if not doubt:
+            abort(404)
+
+        # Ensure requester is the owner of the doubt or an admin
+        current_user = g.current_user
+        is_owner = str(current_user['id']) == str(doubt.get('user_id'))
+        is_admin = bool(current_user.get('is_admin'))
+
+        if not is_owner and not is_admin:
+            flash("You do not have permission to delete this doubt.", "error")
+            return redirect(url_for('main.doubt_detail', doubt_id=doubt_id))
+
+        try:
+            delete_doubt_db(doubt_id)
+            flash("Doubt deleted successfully. 🗑️", "success")
+            return redirect(url_for('main.feed'))
+        except Exception as e:
+            app.logger.error(f"User delete doubt error: {e}")
+            flash("Error deleting doubt.", "error")
+            return redirect(url_for('main.doubt_detail', doubt_id=doubt_id))
 
     # ── Post Reply
     @app.route('/doubt/<doubt_id>/reply', methods=['POST'], endpoint='main.post_reply')
