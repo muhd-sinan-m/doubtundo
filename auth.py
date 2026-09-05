@@ -4,22 +4,22 @@ Verifies JWT tokens from padikkunnundo.in
 """
 
 import os
+import re
 from datetime import datetime, timezone
 
 import jwt
 from flask import (
     Blueprint, request, redirect, url_for,
-    session, render_template, current_app, flash
+    session, render_template, current_app, flash, abort, jsonify
 )
 
 from models import (
     get_user_by_padikku_id, get_user_by_id,
-    get_or_create_user, set_nickname, is_nickname_available
+    get_or_create_user, set_nickname, is_nickname_available,
+    SUBJECTS
 )
 
 auth_bp = Blueprint('auth_bp', __name__)
-
-from models import SUBJECTS
 
 
 def get_jwt_secret():
@@ -35,18 +35,14 @@ def get_padikku_url():
 
 @auth_bp.route('/auth')
 def sso_handler():
-    """
-    SSO entry point — called from padikkunnundo.in with a JWT token.
-    GET /auth?token=<HS256 JWT>
-    JWT payload: { user_id, email, name, exp }
-    """
+    """SSO entry point — handles incoming JWT tokens."""
     token = request.args.get('token', '').strip()
     padikku_url = get_padikku_url()
 
     if not token:
         return render_template(
             'auth_error.html',
-            error_message="No authentication token provided. Please sign in from padikkunnundo.",
+            error_message="No authentication token provided. Please sign in again.",
             padikku_url=padikku_url
         ), 400
 
@@ -61,7 +57,7 @@ def sso_handler():
     except jwt.ExpiredSignatureError:
         return render_template(
             'auth_error.html',
-            error_message="Your sign-in link has expired (5-minute window). Please request a fresh link from padikkunnundo.",
+            error_message="Your sign-in link has expired. Please request a fresh link.",
             padikku_url=padikku_url + '?error=token_expired'
         ), 401
     except jwt.InvalidTokenError as e:
@@ -75,11 +71,10 @@ def sso_handler():
         current_app.logger.error(f"JWT config error: {e}")
         return render_template(
             'auth_error.html',
-            error_message="Authentication service misconfigured. Please contact admin.",
+            error_message="Authentication service unavailable. Please contact the administrator.",
             padikku_url=padikku_url
         ), 500
 
-    # Extract claims
     padikku_user_id = str(payload.get('user_id', ''))
     email = str(payload.get('email', '')).lower().strip()
     name = str(payload.get('name', email.split('@')[0]))
@@ -92,7 +87,6 @@ def sso_handler():
         ), 400
 
     try:
-        # Upsert user (create if first time, update otherwise)
         admin_emails = [
             e.strip().lower()
             for e in os.environ.get('ADMIN_EMAILS', '').split(',')
@@ -110,17 +104,15 @@ def sso_handler():
         current_app.logger.error(f"DB error during auth: {e}")
         return render_template(
             'auth_error.html',
-            error_message="Database error. Please try again.",
+            error_message="An unexpected error occurred. Please try again.",
             padikku_url=padikku_url
         ), 500
 
-    # Create session
     session.permanent = True
     session['user_id'] = str(user['id'])
-    session['email'] = email  # server-side only
+    session['email'] = email
     session.modified = True
 
-    # First visit? → redirect to landing page (main.index)
     if not user.get('nickname'):
         flash("Successfully authenticated! Please choose a nickname to complete your profile.", "success")
         return redirect(url_for('main.index'))
@@ -131,7 +123,7 @@ def sso_handler():
 
 @auth_bp.route('/setup-nickname', methods=['GET', 'POST'])
 def setup_nickname():
-    """First-visit nickname setup page."""
+    """First-visit nickname setup."""
     user_id = session.get('user_id')
     if not user_id:
         return redirect(url_for('auth_bp.login_redirect'))
@@ -141,8 +133,6 @@ def setup_nickname():
     if request.method == 'POST':
         nickname = request.form.get('nickname', '').strip()
 
-        # Validate
-        import re
         if not nickname:
             return render_template('setup_nickname.html', error="Nickname is required.", old_value=nickname)
         if len(nickname) < 3 or len(nickname) > 30:
@@ -162,7 +152,6 @@ def setup_nickname():
         flash(f"Welcome to doubtundo, @{nickname}! 🎉", "success")
         return redirect(url_for('main.index'))
 
-    # If user already has nickname, redirect
     if user and user.get('nickname'):
         return redirect(url_for('main.index'))
 
@@ -172,10 +161,6 @@ def setup_nickname():
 @auth_bp.route('/check-nickname')
 def check_nickname():
     """AJAX endpoint to check nickname availability."""
-    from flask import jsonify
-    from models import is_nickname_available
-    import re
-
     nickname = request.args.get('n', '').strip()
     user_id = session.get('user_id')
 
@@ -190,22 +175,20 @@ def check_nickname():
 
 @auth_bp.route('/logout')
 def logout():
-    """Clear session and redirect home."""
+    """Clear session and redirect to home."""
     session.clear()
     return redirect(url_for('main.index'))
 
 
 @auth_bp.route('/login')
 def login_redirect():
-    """SSO redirect handler: redirects to padikkunnundo's SSO trigger endpoint in production, or dev_login in development."""
+    """SSO redirect handler."""
     user_id = session.get('user_id')
     if user_id:
-        from models import get_user_by_id
         user = get_user_by_id(user_id)
         if user and not user.get('nickname'):
             return redirect(url_for('auth_bp.setup_nickname'))
 
-    # If in local dev mode (DEBUG is True or JWT_SECRET is not configured), allow dev-login
     is_prod = os.environ.get('FLASK_ENV') == 'production' or (os.environ.get('JWT_SECRET') and not current_app.config.get('DEBUG'))
     if is_prod:
         padikku_url = get_padikku_url()
@@ -215,22 +198,18 @@ def login_redirect():
 
 @auth_bp.route('/dev-login', methods=['GET', 'POST'])
 def dev_login():
-    """
-    Development / test login — NO padikkunnundo SSO needed.
-    Lets you sign in with any nickname directly for testing.
-    Remove or guard this route before production!
-    """
-    from flask import jsonify
+    """Development / test login endpoint (disabled in production)."""
+    is_prod = os.environ.get('FLASK_ENV') == 'production' and not current_app.config.get('DEBUG')
+    if is_prod:
+        abort(404)
 
     if request.method == 'POST':
         nickname = request.form.get('nickname', '').strip()
         role = request.form.get('role', 'student')
 
-        import re
         if not nickname or not re.match(r'^[a-zA-Z0-9_]{2,30}$', nickname):
             return render_template('dev_login.html', error="Invalid nickname. Use 2–30 letters, numbers, underscores.")
 
-        # Create/get a dev test user
         try:
             fake_email = f"{nickname.lower()}@devtest.local"
             fake_padikku_id = f"dev_{nickname.lower()}"
@@ -243,7 +222,6 @@ def dev_login():
                 is_admin=is_admin
             )
 
-            # Set nickname if not already set
             if not user.get('nickname'):
                 set_nickname(user['id'], nickname)
                 user['nickname'] = nickname
@@ -257,7 +235,7 @@ def dev_login():
             return redirect(url_for('main.index'))
         except Exception as e:
             current_app.logger.error(f"Dev login error: {e}")
-            return render_template('dev_login.html', error=f"Login error: {str(e)}")
+            return render_template('dev_login.html', error="An unexpected error occurred during login. Please try again.")
 
     return render_template('dev_login.html')
 

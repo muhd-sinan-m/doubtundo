@@ -133,23 +133,23 @@ def hide_doubt(doubt_id):
 @admin_bp.route('/reply/<reply_id>/hide', methods=['POST'])
 @admin_required
 def hide_reply_route(reply_id):
-    """Toggle hide/unhide a reply."""
-    from models import get_db, row_to_dict
+    """Toggle hide/unhide a reply in a single atomic SQL update."""
+    from models import get_db
 
     conn = get_db()
     try:
-        row = conn.execute("SELECT is_hidden FROM replies WHERE id=?", (reply_id,)).fetchone()
+        row = conn.execute(
+            "UPDATE replies SET is_hidden = NOT is_hidden WHERE id=? RETURNING is_hidden",
+            (reply_id,)
+        ).fetchone()
         if not row:
-            conn.close()
             abort(404)
-        current_hidden = bool(row['is_hidden'])
-        conn.execute("UPDATE replies SET is_hidden=? WHERE id=?",
-                     (not current_hidden, reply_id))
         conn.commit()
+        is_hidden = bool(row['is_hidden'])
     finally:
         conn.close()
 
-    action = "unhidden" if current_hidden else "hidden"
+    action = "hidden" if is_hidden else "unhidden"
     flash(f"Reply {action}.", "info")
     return redirect(request.referrer or url_for('admin_bp.panel'))
 

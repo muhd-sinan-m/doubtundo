@@ -1,123 +1,1008 @@
 {% extends "base.html" %}
-{% block title %}Choose Your Nickname{% endblock %}
-{% block meta_description %}Set up your nickname for doubtundo.app — your public identity on the forum{% endblock %}
+{% block title %}Choose Your Nickname — Create Account{% endblock %}
+{% block meta_description %}Set up your public nickname for doubtundo.app — Academic doubt forum for BCA students{% endblock %}
 
 {% block content %}
-<div class="page-container">
-  <div class="card nickname-setup-card fade-in-up" id="nickname-setup-card">
+<div class="signup-page-wrapper">
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow ambient-glow--1" aria-hidden="true"></div>
+  <div class="ambient-glow ambient-glow--2" aria-hidden="true"></div>
 
-    <!-- Welcome Header -->
-    <div class="text-center mb-24">
-      <div style="font-size: 52px; margin-bottom: 12px;">👋</div>
-      <h1 style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Welcome to doubtundo!</h1>
-      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6;">
-        Choose a nickname — this is how you'll appear on the forum.<br>
-        Your real name and email are <strong style="color: var(--text-primary);">never shown publicly</strong>.
-      </p>
+  <div class="signup-container fade-in-up">
+    
+    <!-- LEFT PANEL: Brand & Community Showcase -->
+    <div class="signup-brand-panel">
+      <div class="brand-panel-content">
+        <!-- Logo Display -->
+        <div class="signup-logo-wrapper">
+          <img src="{{ url_for('static', filename='img/logo_main.webp') }}" 
+               alt="doubtundo academic forum" 
+               class="signup-brand-img">
+        </div>
+
+        <div class="brand-panel-text">
+          <span class="brand-step-pill">
+            <span class="step-dot"></span> Step 1 of 1 · Account Profile
+          </span>
+          <h2 class="brand-panel-title">Welcome to <span class="brand-red">doubtundo</span></h2>
+          <p class="brand-panel-desc">
+            The dedicated academic question &amp; answer forum for Marian College BCA students.
+          </p>
+        </div>
+
+        <!-- Highlight features -->
+        <div class="signup-feature-list">
+          <div class="signup-feature-item">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-info">
+              <h4>100% Privacy Protected</h4>
+              <p>Your real name and college email are never revealed to other students.</p>
+            </div>
+          </div>
+          <div class="signup-feature-item">
+            <div class="feature-icon">🎓</div>
+            <div class="feature-info">
+              <h4>BCA Focused Discussions</h4>
+              <p>Filter doubts by semester, subject, and collaborate directly with peers.</p>
+            </div>
+          </div>
+          <div class="signup-feature-item">
+            <div class="feature-icon">⚡</div>
+            <div class="feature-info">
+              <h4>Instant Notifications</h4>
+              <p>Get answers and verified faculty replies as soon as they are posted.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <form method="POST" action="{{ url_for('auth_bp.setup_nickname') }}" id="nickname-form" novalidate>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-
-      <div class="form-group">
-        <label class="form-label" for="nickname-input">
-          Your Nickname <span class="required">*</span>
-        </label>
-        <input
-          type="text"
-          class="form-input"
-          id="nickname-input"
-          name="nickname"
-          placeholder="e.g. cypher_knight"
-          maxlength="30"
-          minlength="3"
-          pattern="[a-zA-Z0-9_]+"
-          required
-          autocomplete="off"
-          autocapitalize="none"
-          aria-describedby="nickname-check nickname-hint"
-          value="{{ old_value or '' }}"
-        >
-        <div id="nickname-check" class="nickname-check" aria-live="polite" style="min-height: 20px;"></div>
-        <p class="form-hint" id="nickname-hint">
-          3–30 characters. Letters, numbers, and underscores only.<br>
-          You can change this once every 30 days.
+    <!-- RIGHT PANEL: Username Selection & Live Preview -->
+    <div class="signup-form-panel">
+      
+      <div class="form-panel-header">
+        <div class="welcome-badge">
+          <span class="wave-emoji">👋</span> Set Up Your Identity
+        </div>
+        <h1 class="form-title">Pick your handle</h1>
+        <p class="form-subtitle">
+          Choose a unique username to represent yourself across questions, replies, and bookmarks.
         </p>
       </div>
 
-      <!-- Anonymous info -->
-      <div class="card card--teal card--flat mb-16" style="padding: 14px 16px;">
-        <div style="display: flex; gap: 10px; align-items: flex-start;">
-          <span style="font-size: 20px; flex-shrink: 0;">🔒</span>
-          <div>
-            <p style="font-size: 13px; font-weight: 600; color: var(--teal-dark); margin-bottom: 2px;">Your identity is protected</p>
-            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">
-              When posting doubts, you can optionally toggle <strong>Anonymous</strong> to hide even your nickname. Admins can always see your real identity in the admin panel.
-            </p>
+      <!-- LIVE FORUM CARD PREVIEW -->
+      <div class="live-preview-box">
+        <div class="preview-header">
+          <span class="preview-label">Live Forum Preview</span>
+          <span class="preview-status" id="preview-status-pill">Drafting</span>
+        </div>
+        
+        <div class="preview-card" id="preview-card">
+          <div class="preview-user-row">
+            <div class="preview-avatar" id="preview-avatar">?</div>
+            <div class="preview-user-meta">
+              <div class="preview-name-row">
+                <span class="preview-handle" id="preview-handle">@your_handle</span>
+                <span class="preview-badge">Student</span>
+              </div>
+              <span class="preview-time">Just now · BCA Community</span>
+            </div>
+          </div>
+          <div class="preview-doubt-body">
+            <span class="preview-question">"How do pointers and memory allocation work in C data structures?"</span>
           </div>
         </div>
       </div>
 
-      <button type="submit" class="btn btn--primary" style="width: 100%; justify-content: center;" id="nickname-submit-btn">
-        Save Nickname &amp; Continue
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
+      <!-- ONBOARDING FORM -->
+      <form method="POST" action="{{ url_for('auth_bp.setup_nickname') }}" id="nickname-form" novalidate class="signup-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
 
-      {% if error %}
-      <p style="color: var(--red-danger); font-size: 13px; text-align: center; margin-top: 12px;" role="alert">{{ error }}</p>
-      {% endif %}
-    </form>
+        <div class="form-group">
+          <div class="label-row">
+            <label class="form-label" for="nickname-input">Choose Nickname <span class="required">*</span></label>
+            <span class="char-counter" id="char-counter">0/30</span>
+          </div>
+
+          <div class="input-with-prefix">
+            <span class="input-prefix" aria-hidden="true">@</span>
+            <input
+              type="text"
+              class="form-input custom-handle-input"
+              id="nickname-input"
+              name="nickname"
+              placeholder="e.g. cyber_ninja"
+              maxlength="30"
+              minlength="3"
+              pattern="[a-zA-Z0-9_]+"
+              required
+              autocomplete="off"
+              autocapitalize="none"
+              autofocus
+              aria-describedby="nickname-check"
+              value="{{ old_value or '' }}"
+            >
+            <div class="input-action-icon" id="input-status-icon">
+              <!-- Dynamically populated icon -->
+            </div>
+          </div>
+
+          <!-- Dynamic Status Notification -->
+          <div id="nickname-check" class="nickname-status-msg" aria-live="polite"></div>
+
+          <!-- Requirements Pills -->
+          <div class="requirements-row">
+            <span class="req-pill" id="req-len">
+              <span class="req-icon">○</span> 3–30 chars
+            </span>
+            <span class="req-pill" id="req-chars">
+              <span class="req-icon">○</span> Letters, numbers, _
+            </span>
+            <span class="req-pill" id="req-avail">
+              <span class="req-icon">○</span> Available
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick Idea Generators -->
+        <div class="suggestions-container">
+          <div class="suggestions-header">
+            <span>✨ Need inspiration?</span>
+            <button type="button" class="btn-reroll" id="btn-reroll" title="Generate fresh nickname ideas">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Shuffle
+            </button>
+          </div>
+          <div class="suggestion-chips" id="suggestion-chips">
+            <!-- Chips will be rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Privacy Shield Reminder -->
+        <div class="privacy-alert-box">
+          <div class="privacy-alert-icon">🔒</div>
+          <div class="privacy-alert-text">
+            <strong>Your identity remains anonymous</strong>
+            <p>You can toggle anonymous mode on individual doubts anytime. You can update this nickname once every 30 days.</p>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-create-account" id="nickname-submit-btn">
+          <span>Complete Profile &amp; Continue</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+
+        {% if error %}
+        <div class="error-banner" role="alert">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>{{ error }}</span>
+        </div>
+        {% endif %}
+      </form>
+
+    </div>
 
   </div>
 </div>
+
+<style>
+/* ============================================================
+   REDESIGNED USERNAME SETUP / CREATE ACCOUNT STYLES
+   ============================================================ */
+.signup-page-wrapper {
+  min-height: calc(100vh - 120px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px 60px;
+  overflow: hidden;
+}
+
+/* Ambient glow background spots */
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+}
+.ambient-glow--1 {
+  width: 500px;
+  height: 500px;
+  background: var(--red);
+  top: 5%;
+  left: 10%;
+}
+.ambient-glow--2 {
+  width: 420px;
+  height: 420px;
+  background: #E53333;
+  bottom: 5%;
+  right: 15%;
+}
+
+/* Main Split Container */
+.signup-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1040px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(205, 0, 0, 0.04);
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  overflow: hidden;
+}
+
+/* ── LEFT PANEL (Brand showcase) ── */
+.signup-brand-panel {
+  background: linear-gradient(145deg, #FAF8F5 0%, #F0ECE4 100%);
+  border-right: 1px solid var(--gray-200);
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.brand-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.signup-logo-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 220px;
+  border-radius: 16px;
+  background: var(--white);
+  padding: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  transition: transform 0.3s ease;
+}
+.signup-logo-wrapper:hover {
+  transform: translateY(-2px);
+}
+.signup-brand-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.brand-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: rgba(205, 0, 0, 0.08);
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 100px;
+  margin-bottom: 12px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+  animation: pulseDot 1.8s infinite ease-in-out;
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.brand-panel-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--charcoal);
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.brand-panel-title .brand-red {
+  color: var(--red);
+}
+.brand-panel-desc {
+  font-size: 14px;
+  color: var(--gray-500);
+  line-height: 1.55;
+}
+
+.signup-feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+.signup-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(228, 224, 216, 0.8);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+.signup-feature-item:hover {
+  background: var(--white);
+  border-color: var(--gray-300);
+  transform: translateX(3px);
+}
+.feature-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 6px;
+  background: var(--gray-50);
+  border-radius: 10px;
+  border: 1px solid var(--gray-200);
+}
+.feature-info h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin-bottom: 2px;
+}
+.feature-info p {
+  font-size: 12px;
+  color: var(--gray-400);
+  line-height: 1.45;
+}
+
+/* ── RIGHT PANEL (Form & Interactive Preview) ── */
+.signup-form-panel {
+  padding: 40px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--white);
+}
+
+.form-panel-header {
+  margin-bottom: 22px;
+}
+.welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-500);
+  margin-bottom: 6px;
+}
+.wave-emoji {
+  display: inline-block;
+  animation: waveArm 2.2s infinite;
+  transform-origin: 70% 70%;
+}
+@keyframes waveArm {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.form-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--charcoal);
+  letter-spacing: -0.6px;
+  margin-bottom: 6px;
+}
+.form-subtitle {
+  font-size: 14px;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* ── LIVE PREVIEW COMPONENT ── */
+.live-preview-box {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.live-preview-box.is-valid {
+  background: #F4FAF6;
+  border-color: #8CE0B0;
+  box-shadow: 0 4px 16px rgba(26, 138, 74, 0.08);
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.preview-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gray-400);
+}
+.preview-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--gray-200);
+  color: var(--gray-500);
+  transition: all 0.2s;
+}
+.preview-status.ready {
+  background: #E8F8EE;
+  color: var(--green-ok);
+}
+
+.preview-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.preview-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.preview-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--red);
+  color: var(--white);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+  box-shadow: 0 2px 8px rgba(205, 0, 0, 0.2);
+}
+.preview-user-meta {
+  display: flex;
+  flex-direction: column;
+}
+.preview-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.preview-handle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--charcoal);
+  font-family: monospace;
+}
+.preview-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(205, 0, 0, 0.08);
+  color: var(--red);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.preview-time {
+  font-size: 11px;
+  color: var(--gray-400);
+}
+.preview-doubt-body {
+  font-size: 13px;
+  color: var(--gray-500);
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid var(--gray-200);
+  padding-left: 10px;
+}
+
+/* ── FORM ELEMENTS ── */
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.label-row .form-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+  margin-bottom: 0;
+}
+.char-counter {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-400);
+}
+
+.input-with-prefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-prefix {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray-400);
+  pointer-events: none;
+  font-family: monospace;
+}
+.custom-handle-input {
+  width: 100%;
+  padding: 13px 44px 13px 34px !important;
+  font-size: 16px !important;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--charcoal);
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.custom-handle-input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(205, 0, 0, 0.12);
+  outline: none;
+}
+.custom-handle-input.valid {
+  border-color: var(--green-ok);
+  background: #FBFFFC;
+}
+.custom-handle-input.invalid {
+  border-color: var(--red-light);
+  background: #FFF9F9;
+}
+
+.input-action-icon {
+  position: absolute;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.spinner-icon {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--gray-200);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Requirements & Status */
+.nickname-status-msg {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 6px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nickname-status-msg.ok {
+  color: var(--green-ok);
+}
+.nickname-status-msg.err {
+  color: var(--red);
+}
+.nickname-status-msg.info {
+  color: var(--gray-500);
+}
+
+.requirements-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.req-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-400);
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  padding: 3px 9px;
+  border-radius: 100px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+.req-pill.passed {
+  color: var(--green-ok);
+  background: #E8F8EE;
+  border-color: #B2E5C5;
+}
+
+/* Inspiration / Suggestion Chips */
+.suggestions-container {
+  background: var(--gray-50);
+  border: 1px dashed var(--gray-300);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.suggestions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray-500);
+  margin-bottom: 8px;
+}
+.btn-reroll {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.btn-reroll:hover {
+  background: var(--red-muted);
+}
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-item {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--charcoal);
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  padding: 4px 10px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.chip-item:hover {
+  border-color: var(--red);
+  color: var(--red);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Privacy Alert Box */
+.privacy-alert-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #FFF7EB;
+  border: 1px solid #FFE2B8;
+  border-radius: 12px;
+}
+.privacy-alert-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 2px;
+}
+.privacy-alert-text strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8C4A00;
+  margin-bottom: 2px;
+}
+.privacy-alert-text p {
+  font-size: 11px;
+  color: #704400;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* CTA Button */
+.btn-create-account {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--white);
+  background: var(--red);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(205, 0, 0, 0.35);
+  transition: all 0.2s ease;
+}
+.btn-create-account:hover:not(:disabled) {
+  background: var(--red-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(205, 0, 0, 0.45);
+}
+.btn-create-account:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #FDF2F2;
+  border: 1px solid #F8B4B4;
+  color: var(--red);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .signup-container {
+    grid-template-columns: 1fr;
+    border-radius: 20px;
+  }
+  .signup-brand-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 30px 24px;
+  }
+  .signup-form-panel {
+    padding: 30px 24px;
+  }
+  .signup-feature-list {
+    display: none; /* keep mobile clean and high conversion */
+  }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
   const input = document.getElementById('nickname-input');
-  const check = document.getElementById('nickname-check');
+  const statusMsg = document.getElementById('nickname-check');
+  const statusIcon = document.getElementById('input-status-icon');
   const btn = document.getElementById('nickname-submit-btn');
-  let timer = null;
-  let lastValid = false;
+  const charCounter = document.getElementById('char-counter');
+  
+  // Preview elements
+  const previewBox = document.querySelector('.live-preview-box');
+  const previewHandle = document.getElementById('preview-handle');
+  const previewAvatar = document.getElementById('preview-avatar');
+  const previewStatusPill = document.getElementById('preview-status-pill');
+  
+  // Requirement Pills
+  const reqLen = document.getElementById('req-len');
+  const reqChars = document.getElementById('req-chars');
+  const reqAvail = document.getElementById('req-avail');
 
-  function setCheck(state, msg) {
-    check.textContent = msg;
-    check.className = 'nickname-check nickname-check--' + state;
+  // Suggestions
+  const chipsContainer = document.getElementById('suggestion-chips');
+  const rerollBtn = document.getElementById('btn-reroll');
+
+  let debounceTimer = null;
+  let currentController = null;
+
+  // Avatar color palette generator based on string
+  const avatarColors = [
+    '#CD0000', '#2563EB', '#7C3AED', '#059669', 
+    '#D97706', '#DB2777', '#0891B2', '#4F46E5'
+  ];
+
+  function getAvatarColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return avatarColors[Math.abs(hash) % avatarColors.length];
   }
 
-  function checkNickname(val) {
-    if (!val) { setCheck('', ''); lastValid = false; return; }
-    if (val.length < 3) { setCheck('err', '✗ Too short (min 3 characters)'); lastValid = false; return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(val)) { setCheck('err', '✗ Only letters, numbers, underscores allowed'); lastValid = false; return; }
-    setCheck('loading', '⏳ Checking availability…');
-    btn.disabled = true;
-    fetch('/check-nickname?n=' + encodeURIComponent(val))
+  // Suggestion dictionary
+  const adjectives = ['swift', 'hyper', 'cypher', 'zenith', 'pixel', 'logic', 'kernel', 'turbo', 'quantum', 'byte', 'vector', 'algo', 'marian'];
+  const nouns = ['coder', 'knight', 'dev', 'pilot', 'wizard', 'hacker', 'spark', 'craft', 'ninja', 'sage', 'scout', 'ace'];
+
+  function generateSuggestions(count = 5) {
+    const list = [];
+    const used = new Set();
+    while (list.length < count) {
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const num = Math.floor(Math.random() * 99) + 1;
+      const opt = Math.random() > 0.5 ? `${adj}_${noun}` : `${adj}_${num}`;
+      if (!used.has(opt)) {
+        used.add(opt);
+        list.push(opt);
+      }
+    }
+    return list;
+  }
+
+  function renderSuggestions() {
+    const suggestions = generateSuggestions(5);
+    chipsContainer.innerHTML = '';
+    suggestions.forEach(item => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip-item';
+      chip.textContent = '@' + item;
+      chip.onclick = function() {
+        input.value = item;
+        handleInputChange();
+        input.focus();
+      };
+      chipsContainer.appendChild(chip);
+    });
+  }
+
+  function updateReq(el, passed) {
+    if (passed) {
+      el.className = 'req-pill passed';
+      el.querySelector('.req-icon').textContent = '✓';
+    } else {
+      el.className = 'req-pill';
+      el.querySelector('.req-icon').textContent = '○';
+    }
+  }
+
+  function setStatus(type, msg, iconHtml = '') {
+    statusMsg.className = 'nickname-status-msg ' + type;
+    statusMsg.innerHTML = msg;
+    statusIcon.innerHTML = iconHtml;
+
+    if (type === 'ok') {
+      input.classList.remove('invalid');
+      input.classList.add('valid');
+      previewBox.classList.add('is-valid');
+      previewStatusPill.className = 'preview-status ready';
+      previewStatusPill.textContent = '✓ Ready';
+      btn.disabled = false;
+    } else if (type === 'err') {
+      input.classList.remove('valid');
+      input.classList.add('invalid');
+      previewBox.classList.remove('is-valid');
+      previewStatusPill.className = 'preview-status';
+      previewStatusPill.textContent = 'Invalid';
+      btn.disabled = true;
+    } else {
+      input.classList.remove('valid', 'invalid');
+      previewBox.classList.remove('is-valid');
+      previewStatusPill.className = 'preview-status';
+      previewStatusPill.textContent = 'Drafting';
+      btn.disabled = (type === 'loading');
+    }
+  }
+
+  function updatePreview(val) {
+    if (!val) {
+      previewHandle.textContent = '@your_handle';
+      previewAvatar.textContent = '?';
+      previewAvatar.style.background = 'var(--red)';
+      return;
+    }
+    previewHandle.textContent = '@' + val;
+    previewAvatar.textContent = val.charAt(0).toUpperCase();
+    previewAvatar.style.background = getAvatarColor(val);
+  }
+
+  function checkAvailability(val) {
+    const lenOk = val.length >= 3 && val.length <= 30;
+    const charOk = /^[a-zA-Z0-9_]+$/.test(val);
+
+    updateReq(reqLen, lenOk);
+    updateReq(reqChars, charOk);
+
+    if (!val) {
+      setStatus('', '');
+      updateReq(reqAvail, false);
+      return;
+    }
+
+    if (!charOk) {
+      setStatus('err', 'Only letters, numbers, and underscores are allowed.');
+      updateReq(reqAvail, false);
+      return;
+    }
+
+    if (!lenOk) {
+      setStatus('err', 'Nickname must be between 3 and 30 characters.');
+      updateReq(reqAvail, false);
+      return;
+    }
+
+    // Passed basic client validation; check with backend
+    if (currentController) currentController.abort();
+    currentController = new AbortController();
+
+    setStatus('loading', 'Checking availability…', '<div class="spinner-icon"></div>');
+
+    fetch('/check-nickname?n=' + encodeURIComponent(val), { signal: currentController.signal })
       .then(r => r.json())
       .then(data => {
         if (data.available) {
-          setCheck('ok', '✓ ' + val + ' is available!');
-          lastValid = true;
-          btn.disabled = false;
+          setStatus('ok', `<strong>@${val}</strong> is available!`, `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green-ok)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`);
+          updateReq(reqAvail, true);
         } else {
-          setCheck('err', '✗ That nickname is taken. Try another.');
-          lastValid = false;
-          btn.disabled = false;
+          setStatus('err', `<strong>@${val}</strong> is already taken. Try another.`);
+          updateReq(reqAvail, false);
         }
       })
-      .catch(() => {
-        setCheck('', '');
-        lastValid = true;
-        btn.disabled = false;
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        // Network fallback
+        setStatus('ok', `<strong>@${val}</strong> format is valid`);
+        updateReq(reqAvail, true);
       });
   }
 
+  function handleInputChange() {
+    const val = input.value.trim();
+    charCounter.textContent = `${val.length}/30`;
+    updatePreview(val);
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      checkAvailability(val);
+    }, 320);
+  }
+
   if (input) {
-    input.addEventListener('input', function() {
-      clearTimeout(timer);
-      timer = setTimeout(() => checkNickname(this.value.trim()), 450);
+    input.addEventListener('input', handleInputChange);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && btn.disabled) {
+        e.preventDefault();
+      }
     });
-    if (input.value) checkNickname(input.value.trim());
+
+    renderSuggestions();
+    if (rerollBtn) {
+      rerollBtn.addEventListener('click', renderSuggestions);
+    }
+
+    if (input.value) {
+      handleInputChange();
+    }
   }
 })();
 </script>

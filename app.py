@@ -16,10 +16,8 @@ from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, abort, g
 )
-from flask_session import Session
 from flask_compress import Compress
 
-# Load .env for local development
 load_dotenv()
 
 
@@ -30,27 +28,20 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
-    # ── Secret key
+    # Configuration
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(32))
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000
 
-    # ── Static file caching: tell browsers to cache CSS/JS for 1 year.
-    #    The ?v=3 cache-buster in base.html handles invalidation on deploy.
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year in seconds
-
-    # ── Gzip compression for all text responses (HTML, JSON, CSS)
+    # Compression
     app.config['COMPRESS_MIMETYPES'] = [
         'text/html', 'text/css', 'application/json',
         'application/javascript', 'text/javascript',
     ]
-    app.config['COMPRESS_LEVEL'] = 6  # balanced speed vs ratio
-    app.config['COMPRESS_MIN_SIZE'] = 500  # don't compress tiny responses
+    app.config['COMPRESS_LEVEL'] = 6
+    app.config['COMPRESS_MIN_SIZE'] = 500
     Compress(app)
 
-    # ── Session: use Flask's built-in signed cookie session.
-    #    The session only stores user_id + email (tiny payload), so cookies are ideal:
-    #    - Zero disk I/O per request (unlike filesystem sessions)
-    #    - Survives Render re-deploys without logging users out
-    #    - Requires FLASK_SECRET_KEY to be a stable value in .env (not os.urandom)
+    # Session settings
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
         days=int(os.environ.get('SESSION_LIFETIME_DAYS', 7))
@@ -58,24 +49,21 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV', '') == 'production'
-    # SESSION_COOKIE_NAME defaults to 'session' — fine as-is
 
-    # ── Register blueprints
+    # Blueprints
     from auth import auth_bp
     from admin import admin_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
 
-    # ── Template filters
+    # Template filters
     register_template_filters(app)
 
-    # ── Main routes
+    # Routes & error handlers
     register_routes(app)
-
-    # ── Error handlers
     register_error_handlers(app)
 
-    # ── Teardown database connection at request end
+    # Teardown database connection
     @app.teardown_appcontext
     def teardown_db(exception):
         from flask import g
@@ -83,7 +71,7 @@ def create_app():
         if db_conn is not None:
             db_conn.actual_close()
 
-    # ── Init SQLite schema on startup
+    # Verify DB connectivity on startup
     from models import init_db
     with app.app_context():
         init_db()
@@ -375,10 +363,7 @@ def register_routes(app):
     # ── Doubt Detail
     @app.route('/doubt/<doubt_id>', endpoint='main.doubt_detail')
     def doubt_detail(doubt_id):
-        from models import (
-            get_doubt, get_replies, get_admin_answer,
-            get_user_upvotes
-        )
+        from models import get_doubt, get_replies, get_user_upvotes
 
         doubt = get_doubt(doubt_id)
         if not doubt:
@@ -398,12 +383,12 @@ def register_routes(app):
 
         doubt['description_html'] = render_md(doubt.get('description', ''))
 
-        admin_answer = get_admin_answer(doubt_id)
+        # Fetch all replies in one query, partition admin answer in-memory (0 extra queries)
+        all_replies = get_replies(doubt_id)
+        admin_answer = next((r for r in all_replies if r.get('is_admin_answer')), None)
         if admin_answer:
             admin_answer['content_html'] = render_md(admin_answer.get('content', ''))
 
-        all_replies = get_replies(doubt_id)
-        # Non-admin-answer replies
         replies = [r for r in all_replies if not r.get('is_admin_answer')]
         for r in replies:
             r['content_html'] = render_md(r.get('content', ''))
@@ -499,14 +484,10 @@ def register_routes(app):
     @app.route('/doubt/<doubt_id>/replies-inline', endpoint='main.replies_inline')
     @login_required
     def replies_inline(doubt_id):
-        from models import get_doubt, get_replies, get_admin_answer
-        doubt = get_doubt(doubt_id)
-        if not doubt:
-            abort(404)
-
+        from models import get_replies
         all_replies = get_replies(doubt_id)
         replies = [r for r in all_replies if not r.get('is_admin_answer')]
-        admin_answer = get_admin_answer(doubt_id)
+        admin_answer = next((r for r in all_replies if r.get('is_admin_answer')), None)
 
         admin_emails = [
             e.strip().lower()

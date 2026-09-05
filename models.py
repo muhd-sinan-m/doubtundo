@@ -49,23 +49,18 @@ from psycopg2.pool import ThreadedConnectionPool
 
 _connection_pool = None
 _pool_pid = None
-_connection_last_used = {}  # maps raw connection id to float timestamp
+_connection_last_used = {}
 
-# Supabase PgBouncer (transaction mode) pool settings:
-#   min=1  — keep at least one warm connection ready
-#   max=5  — stay well within Supabase free-tier connection limits
-#   keepalives help detect silently-dropped TCP connections
 _POOL_MIN = 1
 _POOL_MAX = 5
-_IDLE_PING_AFTER = 10  # seconds before we health-check an idle connection
+_IDLE_PING_AFTER = 10
 
 
 def _make_pool(db_url: str) -> ThreadedConnectionPool:
-    """Create a new ThreadedConnectionPool with PgBouncer-friendly options."""
+    """Create a new ThreadedConnectionPool configured for PostgreSQL connection pooling."""
     return ThreadedConnectionPool(
         _POOL_MIN, _POOL_MAX,
         dsn=db_url,
-        # TCP keepalives so the OS detects a silently-dropped connection
         keepalives=1,
         keepalives_idle=30,
         keepalives_interval=10,
@@ -91,7 +86,7 @@ def get_connection_pool() -> ThreadedConnectionPool:
 
 
 def _discard_conn(pool: ThreadedConnectionPool, raw_conn) -> None:
-    """Return a broken connection to the pool and force-close it."""
+    """Safely return a broken connection to the pool and close it."""
     conn_id = id(raw_conn)
     _connection_last_used.pop(conn_id, None)
     try:
@@ -99,7 +94,6 @@ def _discard_conn(pool: ThreadedConnectionPool, raw_conn) -> None:
     except Exception:
         pass
     try:
-        # putconn marks it as returned; pool will not reuse a closed connection
         pool.putconn(raw_conn)
     except Exception:
         pass
@@ -117,10 +111,8 @@ class PostgresConnectionWrapper:
         return self._conn.cursor(*args, **kwargs)
 
     def execute(self, sql, params=None):
-        # Swap SQLite-style ? placeholders with PostgreSQL %s
         sql = sql.replace('?', '%s')
 
-        # Coerce stringified JSON arrays → Python lists for PostgreSQL array columns
         if params:
             new_params = []
             for p in params:
@@ -143,18 +135,15 @@ class PostgresConnectionWrapper:
         self._conn.rollback()
 
     def close(self):
-        """No-op if connection is request-scoped (reused across request)."""
+        """No-op if connection is request-scoped."""
         if self.request_scoped:
             return
         self.actual_close()
 
     def actual_close(self):
-        """Return the underlying connection to the pool (or close it if no pool)."""
+        """Return the connection to the pool or close it."""
         if self._pool:
             try:
-                # Always rollback before returning so the next caller gets a clean state.
-                # NOTE: do NOT call reset() here — it issues SET commands that are
-                # unsupported in PgBouncer transaction-mode pooling.
                 self._conn.rollback()
             except Exception:
                 pass
@@ -346,28 +335,21 @@ SUBJECTS = sorted(list(set(SUBJECTS)))
 def get_or_create_user(padikku_user_id: str, email: str, name: str, is_admin: bool = False) -> dict:
     conn = get_db()
     try:
-        row = conn.execute(
-            "SELECT * FROM users WHERE padikku_user_id = ?", (padikku_user_id,)
-        ).fetchone()
-
-        if row:
-            user = row_to_dict(row)
-            user['is_admin'] = bool(user['is_admin'])
-            # Promote to admin if needed
-            if is_admin and not user['is_admin']:
-                conn.execute("UPDATE users SET is_admin=TRUE WHERE id=?", (user['id'],))
-                conn.commit()
-                user['is_admin'] = True
-            return user
-
-        # Create new user
         new_id = _uid()
-        conn.execute(
-            "INSERT INTO users (id, padikku_user_id, email, is_admin, created_at) VALUES (?,?,?,?,?)",
-            (new_id, padikku_user_id, email, is_admin, _now())
-        )
+        now = _now()
+        # Single-query upsert using PostgreSQL ON CONFLICT ... RETURNING
+        row = conn.execute(
+            """INSERT INTO users (id, padikku_user_id, email, is_admin, created_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT (padikku_user_id) DO UPDATE
+               SET is_admin = CASE WHEN EXCLUDED.is_admin THEN TRUE ELSE users.is_admin END
+               RETURNING *""",
+            (new_id, padikku_user_id, email, is_admin, now)
+        ).fetchone()
         conn.commit()
-        return row_to_dict(conn.execute("SELECT * FROM users WHERE id=?", (new_id,)).fetchone())
+        user = row_to_dict(row)
+        user['is_admin'] = bool(user['is_admin'])
+        return user
     finally:
         conn.close()
 
@@ -421,12 +403,12 @@ def set_nickname(user_id: str, nickname: str) -> dict:
     conn = get_db()
     try:
         now = _now()
-        conn.execute(
-            "UPDATE users SET nickname=?, nickname_changed_at=? WHERE id=?",
+        row = conn.execute(
+            "UPDATE users SET nickname=?, nickname_changed_at=? WHERE id=? RETURNING *",
             (nickname, now, user_id)
-        )
+        ).fetchone()
         conn.commit()
-        return row_to_dict(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+        return row_to_dict(row)
     finally:
         conn.close()
 
@@ -557,10 +539,31 @@ def list_doubts(
 def get_doubt(doubt_id: str) -> dict | None:
     conn = get_db()
     try:
-        row = conn.execute("SELECT * FROM doubts WHERE id=?", (doubt_id,)).fetchone()
+        sql = """
+            SELECT d.*,
+                   u.nickname,
+                   u.email AS poster_email,
+                   (SELECT COUNT(*) FROM replies r
+                    WHERE r.doubt_id=d.id AND r.is_hidden=FALSE AND r.is_admin_answer=FALSE) AS reply_count,
+                   (SELECT COUNT(*) FROM replies r JOIN users u2 ON u2.id=r.user_id
+                    WHERE r.doubt_id=d.id AND u2.is_admin=TRUE) AS has_admin_answer
+            FROM doubts d
+            LEFT JOIN users u ON u.id=d.user_id
+            WHERE d.id = ?
+        """
+        row = conn.execute(sql, (doubt_id,)).fetchone()
         if not row:
             return None
-        return _enrich_doubt(row_to_dict(row), conn)
+        r = row_to_dict(row)
+        try:
+            r['tags'] = json.loads(r.get('tags') or '[]')
+        except Exception:
+            r['tags'] = []
+        r['is_anonymous'] = bool(r.get('is_anonymous'))
+        r['is_resolved'] = bool(r.get('is_resolved'))
+        r['nickname'] = r.get('nickname') or 'Unknown'
+        r['poster_email'] = r.get('poster_email') or ''
+        return r
     finally:
         conn.close()
 
@@ -572,15 +575,28 @@ def create_doubt(
     conn = get_db()
     try:
         new_id = _uid()
-        conn.execute(
+        now = _now()
+        row = conn.execute(
             """INSERT INTO doubts (id, user_id, title, description, subject, semester, tags, is_anonymous, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?)
+               RETURNING *""",
             (new_id, user_id, title.strip(), description.strip() if description else None,
-             subject, int(semester), json.dumps(tags), is_anonymous, _now())
-        )
+             subject, int(semester), json.dumps(tags), is_anonymous, now)
+        ).fetchone()
         conn.commit()
-        row = conn.execute("SELECT * FROM doubts WHERE id=?", (new_id,)).fetchone()
-        return _enrich_doubt(row_to_dict(row), conn)
+        r = row_to_dict(row)
+        try:
+            r['tags'] = json.loads(r.get('tags') or '[]')
+        except Exception:
+            r['tags'] = []
+        r['is_anonymous'] = bool(r.get('is_anonymous'))
+        r['is_resolved'] = bool(r.get('is_resolved'))
+        r['reply_count'] = 0
+        r['has_admin_answer'] = False
+        user = conn.execute("SELECT nickname, email FROM users WHERE id=?", (user_id,)).fetchone()
+        r['nickname'] = user['nickname'] if user else 'Unknown'
+        r['poster_email'] = user['email'] if user else ''
+        return r
     finally:
         conn.close()
 
@@ -634,13 +650,17 @@ def create_reply(doubt_id: str, user_id: str, content: str, is_admin_answer: boo
                 "DELETE FROM replies WHERE doubt_id=? AND is_admin_answer=TRUE", (doubt_id,)
             )
         new_id = _uid()
-        conn.execute(
+        row = conn.execute(
             "INSERT INTO replies (id, doubt_id, user_id, content, is_admin_answer, created_at) "
-            "VALUES (?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?) RETURNING *",
             (new_id, doubt_id, user_id, content.strip(), is_admin_answer, _now())
-        )
+        ).fetchone()
         conn.commit()
-        return row_to_dict(conn.execute("SELECT * FROM replies WHERE id=?", (new_id,)).fetchone())
+        r = row_to_dict(row)
+        r['is_admin_answer'] = bool(r.get('is_admin_answer'))
+        r['is_helpful'] = bool(r.get('is_helpful'))
+        r['is_hidden'] = bool(r.get('is_hidden'))
+        return r
     finally:
         conn.close()
 
@@ -649,7 +669,7 @@ def mark_reply_helpful(reply_id: str, doubt_id: str, requester_user_id: str) -> 
     conn = get_db()
     try:
         doubt = conn.execute("SELECT user_id FROM doubts WHERE id=?", (doubt_id,)).fetchone()
-        if not doubt or doubt['user_id'] != requester_user_id:
+        if not doubt or str(doubt['user_id']) != str(requester_user_id):
             return False
         conn.execute("UPDATE replies SET is_helpful=FALSE WHERE doubt_id=?", (doubt_id,))
         conn.execute("UPDATE replies SET is_helpful=TRUE WHERE id=?", (reply_id,))
@@ -708,28 +728,31 @@ def delete_reply_db(reply_id: str):
 def toggle_upvote(user_id: str, target_id: str, target_type: str) -> tuple[bool, int]:
     conn = get_db()
     try:
-        existing = conn.execute(
-            "SELECT id FROM upvotes WHERE user_id=? AND target_id=?", (user_id, target_id)
+        deleted = conn.execute(
+            "DELETE FROM upvotes WHERE user_id=? AND target_id=? RETURNING id",
+            (user_id, target_id)
         ).fetchone()
 
-        if existing:
-            conn.execute("DELETE FROM upvotes WHERE id=?", (existing['id'],))
-            delta = -1
+        table = 'doubts' if target_type == 'doubt' else 'replies'
+        if deleted:
             voted = False
+            row = conn.execute(
+                f"UPDATE {table} SET upvotes = GREATEST(0, upvotes - 1) WHERE id=? RETURNING upvotes",
+                (target_id,)
+            ).fetchone()
         else:
+            voted = True
             conn.execute(
                 "INSERT INTO upvotes (id, user_id, target_id, target_type, created_at) VALUES (?,?,?,?,?)",
                 (_uid(), user_id, target_id, target_type, _now())
             )
-            delta = 1
-            voted = True
+            row = conn.execute(
+                f"UPDATE {table} SET upvotes = upvotes + 1 WHERE id=? RETURNING upvotes",
+                (target_id,)
+            ).fetchone()
 
-        table = 'doubts' if target_type == 'doubt' else 'replies'
-        new_count = max(0, conn.execute(
-            f"SELECT upvotes FROM {table} WHERE id=?", (target_id,)
-        ).fetchone()[0] + delta)
-        conn.execute(f"UPDATE {table} SET upvotes=? WHERE id=?", (new_count, target_id))
         conn.commit()
+        new_count = row['upvotes'] if row and 'upvotes' in row else (row[0] if row else 0)
         return voted, new_count
     finally:
         conn.close()
@@ -827,11 +850,18 @@ def get_all_users_admin() -> list[dict]:
 def get_admin_stats() -> dict:
     conn = get_db()
     try:
+        row = conn.execute("""
+            SELECT
+                (SELECT COUNT(*) FROM doubts)                                  AS total_doubts,
+                (SELECT COUNT(*) FROM replies)                                 AS total_replies,
+                (SELECT COUNT(*) FROM doubts WHERE is_resolved=TRUE)           AS resolved_count,
+                (SELECT COUNT(*) FROM users)                                   AS total_users
+        """).fetchone()
         return {
-            'total_doubts':  conn.execute("SELECT COUNT(*) FROM doubts").fetchone()[0],
-            'total_replies': conn.execute("SELECT COUNT(*) FROM replies").fetchone()[0],
-            'resolved_count': conn.execute("SELECT COUNT(*) FROM doubts WHERE is_resolved=TRUE").fetchone()[0],
-            'total_users':   conn.execute("SELECT COUNT(*) FROM users").fetchone()[0],
+            'total_doubts':  row['total_doubts'] or 0,
+            'total_replies': row['total_replies'] or 0,
+            'resolved_count': row['resolved_count'] or 0,
+            'total_users':   row['total_users'] or 0,
         }
     finally:
         conn.close()
@@ -855,13 +885,6 @@ def hide_doubt_db(doubt_id: str):
         conn.commit()
     finally:
         conn.close()
-
-
-def get_supabase():
-    """Stub — only here so any code that imports get_supabase doesn't crash.
-    In SQLite mode this is unused. Will be removed when switching back to Supabase."""
-    raise RuntimeError("Running in SQLite mode — get_supabase() is not available.")
-
 
 # ============================================================
 # PROFILE HELPERS

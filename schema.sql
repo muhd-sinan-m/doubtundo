@@ -45,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_doubts_subject ON doubts(subject);
 CREATE INDEX IF NOT EXISTS idx_doubts_semester ON doubts(semester);
 CREATE INDEX IF NOT EXISTS idx_doubts_created_at ON doubts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_doubts_upvotes ON doubts(upvotes DESC);
+CREATE INDEX IF NOT EXISTS idx_doubts_filter_sort ON doubts(semester, subject, created_at DESC);
 
 -- ============================================================
 -- REPLIES
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS replies (
 CREATE INDEX IF NOT EXISTS idx_replies_doubt_id ON replies(doubt_id);
 CREATE INDEX IF NOT EXISTS idx_replies_user_id ON replies(user_id);
 CREATE INDEX IF NOT EXISTS idx_replies_is_admin_answer ON replies(is_admin_answer);
+CREATE INDEX IF NOT EXISTS idx_replies_doubt_stats ON replies(doubt_id, is_hidden, is_admin_answer);
 
 -- Only one admin answer per doubt
 CREATE UNIQUE INDEX IF NOT EXISTS idx_one_admin_answer_per_doubt
