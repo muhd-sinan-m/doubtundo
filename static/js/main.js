@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
       flash.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
       flash.style.opacity = '0';
-      flash.style.transform = 'translateX(20px)';
+      flash.style.transform = 'translateY(-8px)';
       setTimeout(function () { flash.remove(); }, 500);
     }, 4000);
   });
@@ -363,8 +363,9 @@ document.addEventListener('DOMContentLoaded', function () {
     toast.onclick = function () { toast.remove(); };
     container.appendChild(toast);
     setTimeout(function () {
-      toast.style.transition = 'opacity 0.5s ease';
+      toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
       toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-8px)';
       setTimeout(function () { toast.remove(); }, 500);
     }, 4000);
   }

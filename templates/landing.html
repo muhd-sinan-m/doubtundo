@@ -359,7 +359,7 @@
 
     <!-- Filter Bar -->
     <div class="filter-bar" id="filter-bar" role="search" aria-label="Filter doubts">
-      <form method="GET" action="{{ url_for('main.index') }}" id="filter-form" style="display: contents;">
+      <form method="GET" action="{{ url_for('main.index') }}" id="filter-form" class="filter-form">
         <select class="filter-select" name="semester" id="filter-semester" onchange="this.form.submit()"
           aria-label="Filter by semester">
           <option value="">All Semesters</option>
@@ -376,17 +376,19 @@
           {% endfor %}
         </select>
 
-        <label class="filter-toggle {% if filters.unanswered %}active{% endif %}" for="filter-unanswered">
-          <input type="checkbox" id="filter-unanswered" name="unanswered" value="1" onchange="this.form.submit()" {% if
-            filters.unanswered %}checked{% endif %}>
-          Unanswered
-        </label>
+        <div class="filter-toggles-row">
+          <label class="filter-toggle {% if filters.unanswered %}active{% endif %}" for="filter-unanswered">
+            <input type="checkbox" id="filter-unanswered" name="unanswered" value="1" onchange="this.form.submit()" {% if
+              filters.unanswered %}checked{% endif %}>
+            Unanswered
+          </label>
 
-        <label class="filter-toggle {% if filters.admin_answer %}active{% endif %}" for="filter-admin">
-          <input type="checkbox" id="filter-admin" name="admin_answer" value="1" onchange="this.form.submit()" {% if
-            filters.admin_answer %}checked{% endif %}>
-          Has Admin Answer
-        </label>
+          <label class="filter-toggle {% if filters.admin_answer %}active{% endif %}" for="filter-admin">
+            <input type="checkbox" id="filter-admin" name="admin_answer" value="1" onchange="this.form.submit()" {% if
+              filters.admin_answer %}checked{% endif %}>
+            Has Admin Answer
+          </label>
+        </div>
       </form>
 
       <!-- Sort tabs -->

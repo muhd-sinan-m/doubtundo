@@ -24,7 +24,7 @@
 
       <!-- Filter / Sort Bar -->
       <div class="filter-bar" id="reddit-filter-bar" role="search" aria-label="Filter doubts">
-        <form method="GET" action="{{ url_for('main.feed') }}" id="filter-form" style="display: contents;">
+        <form method="GET" action="{{ url_for('main.feed') }}" id="filter-form" class="filter-form">
           <select class="filter-select" name="semester" id="filter-semester" onchange="this.form.submit()"
             aria-label="Filter by semester">
             <option value="">All Semesters</option>

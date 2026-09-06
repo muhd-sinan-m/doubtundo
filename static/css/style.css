@@ -1106,6 +1106,18 @@ select {
   flex-wrap: wrap;
   box-shadow: var(--shadow-sm);
   margin-bottom: var(--card-gap);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-form,
+.filter-bar form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .filter-select {
@@ -1123,10 +1135,23 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
+  min-width: 0;
+  max-width: 220px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .filter-select:focus {
   border-color: var(--red);
+}
+
+.filter-toggles-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-toggle {
@@ -1142,6 +1167,8 @@ select {
   background: var(--white);
   cursor: pointer;
   transition: all 0.2s;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .filter-toggle:hover,
@@ -1170,6 +1197,7 @@ select {
   background: transparent;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .sort-tab:hover,
@@ -1446,11 +1474,14 @@ select {
   position: fixed;
   top: 84px;
   right: 20px;
-  z-index: 300;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 360px;
+  max-width: 380px;
+  width: auto;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
 .flash {
@@ -1464,6 +1495,18 @@ select {
   gap: 10px;
   animation: slideIn 0.3s ease;
   cursor: pointer;
+  pointer-events: auto;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.flash span {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .flash--success {
@@ -1493,21 +1536,22 @@ select {
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(16px);
+    transform: translateY(-8px);
   }
 
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .flash-messages {
-    top: 76px;
-    right: 16px;
-    left: 16px;
-    max-width: none;
+    top: 70px;
+    right: 12px;
+    left: 12px;
+    max-width: calc(100vw - 24px);
+    width: auto;
   }
   .flash {
     width: 100%;
@@ -2318,34 +2362,50 @@ select {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   /* Make filters stack vertically and use full width */
+  .filter-bar,
   #reddit-filter-bar {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    padding: 16px;
+    padding: 14px;
+    box-sizing: border-box;
+    width: 100%;
   }
 
+  .filter-bar form,
+  .filter-form,
   #reddit-filter-bar form {
     display: flex;
     flex-direction: column;
     gap: 10px;
     width: 100%;
-  }
-
-  #reddit-filter-bar .filter-select {
-    width: 100%;
+    min-width: 0;
     box-sizing: border-box;
   }
 
+  .filter-bar .filter-select,
+  .filter-form .filter-select,
+  #reddit-filter-bar .filter-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    font-size: 13px;
+    text-overflow: ellipsis;
+  }
+
   /* Toggles wrapper: single horizontal flex row */
+  .filter-bar .filter-toggles-row,
   #reddit-filter-bar .filter-toggles-row {
     display: flex;
     gap: 8px;
     width: 100%;
+    box-sizing: border-box;
   }
 
+  .filter-bar .filter-toggle,
   #reddit-filter-bar .filter-toggle {
     flex: 1;
     display: flex;
@@ -2355,20 +2415,23 @@ select {
     background: var(--gray-50);
     border: 1px solid var(--gray-200);
     border-radius: 100px;
-    padding: 6px 12px;
+    padding: 6px 10px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
     box-sizing: border-box;
+    text-align: center;
   }
 
+  .filter-bar .filter-toggle.active,
   #reddit-filter-bar .filter-toggle.active {
     background: var(--red-wash);
     border-color: var(--red);
     color: var(--red);
   }
 
+  .filter-bar .sort-tabs,
   #reddit-filter-bar .sort-tabs {
     margin-left: 0 !important;
     display: flex;
@@ -2377,8 +2440,10 @@ select {
     margin-top: 4px;
     border-top: 1px solid var(--gray-100);
     padding-top: 12px;
+    box-sizing: border-box;
   }
 
+  .filter-bar .sort-tab,
   #reddit-filter-bar .sort-tab {
     flex: 1;
     text-align: center;
